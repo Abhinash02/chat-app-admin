@@ -1,0 +1,408 @@
+import { useState } from 'react';
+import { Gamepad2, MessageSquare, MapPin, Radio, Save, ShieldAlert, Wallet } from 'lucide-react';
+
+import { Button } from '../components/ui/Button.jsx';
+import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
+import { ErrorState, LoadingState } from '../components/ui/Feedback.jsx';
+import { Field, Input, NumberInput, Textarea, Toggle } from '../components/ui/Field.jsx';
+import { PageHeader } from '../components/layout/AppLayout.jsx';
+import { useSettings, useUpdateSettings } from '../hooks/queries.js';
+
+/**
+ * Each section owns its own draft and Save button.
+ *
+ * One page-wide save would mean an operator fixing a UPI ID also re-submits
+ * every unrelated value they happened to look at — and the PATCH is partial by
+ * design, so keeping the granularity here matches how the API behaves.
+ */
+function SettingsSection({ icon: Icon, title, description, group, settings, children, transform }) {
+  const saved = settings[group];
+
+  const [draft, setDraft] = useState(saved);
+  const [syncedWith, setSyncedWith] = useState(saved);
+  const update = useUpdateSettings();
+
+  // Adjusting state during render rather than in an effect: React re-renders
+  // this component immediately with the new draft and never commits the stale
+  // one, so a save from elsewhere cannot flash old values on screen.
+  if (syncedWith !== saved) {
+    setSyncedWith(saved);
+    setDraft(saved);
+  }
+
+  const hasChanges = JSON.stringify(draft) !== JSON.stringify(saved);
+  const set = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
+
+  return (
+    <Card>
+      <CardHeader
+        title={
+          <span className="flex items-center gap-2">
+            <Icon className="h-4 w-4 text-ink-400" aria-hidden="true" />
+            {title}
+          </span>
+        }
+        description={description}
+        action={
+          <Button
+            size="sm"
+            icon={Save}
+            disabled={!hasChanges}
+            isLoading={update.isPending}
+            onClick={() => update.mutate({ [group]: transform ? transform(draft) : draft })}
+          >
+            Save
+          </Button>
+        }
+      />
+      <CardBody>{children({ draft, set })}</CardBody>
+    </Card>
+  );
+}
+
+export function SettingsPage() {
+  const { data: settings, isLoading, error, refetch } = useSettings();
+
+  if (isLoading) return <LoadingState label="Loading settings…" />;
+  if (error) return <ErrorState error={error} onRetry={refetch} />;
+
+  return (
+    <>
+      <PageHeader
+        title="Settings"
+        description="How the app behaves. Every change is live immediately — no release required."
+      />
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <SettingsSection
+          icon={MessageSquare}
+          title="Chat"
+          description="Messaging behaviour and the automatic greeting."
+          group="chat"
+          settings={settings}
+          transform={(draft) => ({
+            maxMessageLength: Number(draft.maxMessageLength),
+            autoGreetingText: draft.autoGreetingText,
+            autoGreetingEnabled: draft.autoGreetingEnabled,
+            heartbeatIntervalSeconds: Number(draft.heartbeatIntervalSeconds),
+            typingIndicatorEnabled: draft.typingIndicatorEnabled,
+          })}
+        >
+          {({ draft, set }) => (
+            <div className="space-y-4">
+              <Toggle
+                checked={draft.autoGreetingEnabled}
+                onChange={(value) => set('autoGreetingEnabled', value)}
+                label="Send a greeting automatically"
+                description="Sent once when someone opens a brand-new chat by tapping a profile."
+              />
+
+              <Field label="Greeting text" hint="Kept short — it is a conversation opener, not a message.">
+                <Input
+                  value={draft.autoGreetingText ?? ''}
+                  onChange={(event) => set('autoGreetingText', event.target.value)}
+                  maxLength={200}
+                  disabled={!draft.autoGreetingEnabled}
+                />
+              </Field>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Longest message">
+                  <NumberInput
+                    value={draft.maxMessageLength}
+                    min={1}
+                    max={5000}
+                    suffix="chars"
+                    onChange={(event) => set('maxMessageLength', event.target.value)}
+                  />
+                </Field>
+
+                <Field
+                  label="Free-time tick"
+                  hint="How often the app reports it is still chatting."
+                >
+                  <NumberInput
+                    value={draft.heartbeatIntervalSeconds}
+                    min={5}
+                    max={120}
+                    suffix="sec"
+                    onChange={(event) => set('heartbeatIntervalSeconds', event.target.value)}
+                  />
+                </Field>
+              </div>
+
+              <Toggle
+                checked={draft.typingIndicatorEnabled}
+                onChange={(value) => set('typingIndicatorEnabled', value)}
+                label="Show typing indicators"
+              />
+            </div>
+          )}
+        </SettingsSection>
+
+        <SettingsSection
+          icon={Wallet}
+          title="Payments"
+          description="Where money arrives. The UPI details here are shown to buyers."
+          group="payments"
+          settings={settings}
+        >
+          {({ draft, set }) => (
+            <div className="space-y-4">
+              <Toggle
+                checked={draft.razorpayEnabled}
+                onChange={(value) => set('razorpayEnabled', value)}
+                label="Card and UPI checkout (Razorpay)"
+                description="Needs RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET set on the server."
+              />
+
+              <Toggle
+                checked={draft.manualUpiEnabled}
+                onChange={(value) => set('manualUpiEnabled', value)}
+                label="Direct UPI transfer"
+                description="Buyers pay your UPI ID and submit the reference. You confirm it on the Payments page."
+              />
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="UPI ID" hint="Works with GPay, PhonePe, Paytm and any UPI app.">
+                  <Input
+                    value={draft.upiId ?? ''}
+                    onChange={(event) => set('upiId', event.target.value)}
+                    placeholder="yourname@bank"
+                    disabled={!draft.manualUpiEnabled}
+                  />
+                </Field>
+
+                <Field label="Payee name" hint="Shown in the buyer's payment app.">
+                  <Input
+                    value={draft.upiPayeeName ?? ''}
+                    onChange={(event) => set('upiPayeeName', event.target.value)}
+                    disabled={!draft.manualUpiEnabled}
+                  />
+                </Field>
+              </div>
+
+              <Field
+                label="QR code image URL"
+                hint="Optional. The app also generates a UPI link from the ID above, so a QR is not required."
+              >
+                <Input
+                  value={draft.upiQrImageUrl ?? ''}
+                  onChange={(event) => set('upiQrImageUrl', event.target.value)}
+                  placeholder="https://…"
+                  disabled={!draft.manualUpiEnabled}
+                />
+              </Field>
+
+              <Field label="Support email" hint="Shown to buyers if a payment goes wrong.">
+                <Input
+                  type="email"
+                  value={draft.supportEmail ?? ''}
+                  onChange={(event) => set('supportEmail', event.target.value)}
+                />
+              </Field>
+            </div>
+          )}
+        </SettingsSection>
+
+        <SettingsSection
+          icon={MapPin}
+          title="Discovery"
+          description="How people find each other."
+          group="discovery"
+          settings={settings}
+          transform={(draft) => ({
+            defaultRadiusKm: Number(draft.defaultRadiusKm),
+            maxRadiusKm: Number(draft.maxRadiusKm),
+            showDistance: draft.showDistance,
+          })}
+        >
+          {({ draft, set }) => (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Default radius">
+                  <NumberInput
+                    value={draft.defaultRadiusKm}
+                    min={1}
+                    max={500}
+                    suffix="km"
+                    onChange={(event) => set('defaultRadiusKm', event.target.value)}
+                  />
+                </Field>
+
+                <Field label="Maximum radius" hint="Caps how far anyone can search.">
+                  <NumberInput
+                    value={draft.maxRadiusKm}
+                    min={1}
+                    max={500}
+                    suffix="km"
+                    onChange={(event) => set('maxRadiusKm', event.target.value)}
+                  />
+                </Field>
+              </div>
+
+              <Toggle
+                checked={draft.showDistance}
+                onChange={(value) => set('showDistance', value)}
+                label="Show distance on profiles"
+                description="Turn off if you would rather not reveal how close people are."
+              />
+            </div>
+          )}
+        </SettingsSection>
+
+        <SettingsSection
+          icon={Radio}
+          title="Rooms"
+          description="Group chat with voice. Free to join by design."
+          group="rooms"
+          settings={settings}
+          transform={(draft) => ({
+            enabled: draft.enabled,
+            maxParticipants: Number(draft.maxParticipants),
+            voiceEnabled: draft.voiceEnabled,
+            entryCoinCost: Number(draft.entryCoinCost),
+          })}
+        >
+          {({ draft, set }) => (
+            <div className="space-y-4">
+              <Toggle
+                checked={draft.enabled}
+                onChange={(value) => set('enabled', value)}
+                label="Rooms available"
+              />
+
+              <Toggle
+                checked={draft.voiceEnabled}
+                onChange={(value) => set('voiceEnabled', value)}
+                label="Voice in rooms"
+                description="Audio is peer to peer, so the cap below is about connection quality, not server cost."
+                disabled={!draft.enabled}
+              />
+
+              <Field label="People per room" hint="Voice quality drops well before 20 on a mesh.">
+                <NumberInput
+                  value={draft.maxParticipants}
+                  min={2}
+                  max={100}
+                  suffix="people"
+                  onChange={(event) => set('maxParticipants', event.target.value)}
+                  disabled={!draft.enabled}
+                />
+              </Field>
+            </div>
+          )}
+        </SettingsSection>
+
+        <SettingsSection
+          icon={Gamepad2}
+          title="Games"
+          description="Mini games and the leaderboard everyone can see."
+          group="games"
+          settings={settings}
+          transform={(draft) => ({
+            enabled: draft.enabled,
+            leaderboardSize: Number(draft.leaderboardSize),
+            maxSessionsPerDay: Number(draft.maxSessionsPerDay),
+            coinsPerPointConversion: Number(draft.coinsPerPointConversion),
+          })}
+        >
+          {({ draft, set }) => (
+            <div className="space-y-4">
+              <Toggle
+                checked={draft.enabled}
+                onChange={(value) => set('enabled', value)}
+                label="Games available"
+              />
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Leaderboard size">
+                  <NumberInput
+                    value={draft.leaderboardSize}
+                    min={3}
+                    max={500}
+                    suffix="players"
+                    onChange={(event) => set('leaderboardSize', event.target.value)}
+                    disabled={!draft.enabled}
+                  />
+                </Field>
+
+                <Field label="Games per day" hint="Per player. Limits score farming.">
+                  <NumberInput
+                    value={draft.maxSessionsPerDay}
+                    min={1}
+                    max={1000}
+                    suffix="games"
+                    onChange={(event) => set('maxSessionsPerDay', event.target.value)}
+                    disabled={!draft.enabled}
+                  />
+                </Field>
+              </div>
+
+              <Field
+                label="Coins per point"
+                hint="Leave at 0 to keep points cosmetic. Anything above 0 turns games into a coin source — raise it carefully."
+              >
+                <NumberInput
+                  value={draft.coinsPerPointConversion}
+                  min={0}
+                  max={100}
+                  step={0.01}
+                  suffix="coins"
+                  onChange={(event) => set('coinsPerPointConversion', event.target.value)}
+                  disabled={!draft.enabled}
+                />
+              </Field>
+            </div>
+          )}
+        </SettingsSection>
+
+        <SettingsSection
+          icon={ShieldAlert}
+          title="Moderation"
+          description="Automatic filtering. The report and block flow does the heavy lifting."
+          group="moderation"
+          settings={settings}
+          transform={(draft) => ({
+            profanityFilterEnabled: draft.profanityFilterEnabled,
+            blockedWords: Array.isArray(draft.blockedWords)
+              ? draft.blockedWords
+              : String(draft.blockedWords ?? '')
+                  .split(/[\n,]/)
+                  .map((word) => word.trim())
+                  .filter(Boolean),
+          })}
+        >
+          {({ draft, set }) => (
+            <div className="space-y-4">
+              <Toggle
+                checked={draft.profanityFilterEnabled}
+                onChange={(value) => set('profanityFilterEnabled', value)}
+                label="Mask blocked words"
+                description="Matched words are replaced with asterisks. The message still sends."
+              />
+
+              <Field
+                label="Blocked words"
+                hint="One per line or comma separated. Whole words only — an aggressive list mangles ordinary conversation."
+              >
+                <Textarea
+                  rows={5}
+                  value={
+                    Array.isArray(draft.blockedWords)
+                      ? draft.blockedWords.join('\n')
+                      : (draft.blockedWords ?? '')
+                  }
+                  onChange={(event) => set('blockedWords', event.target.value.split('\n'))}
+                  placeholder={'word one\nword two'}
+                  disabled={!draft.profanityFilterEnabled}
+                  className="font-mono text-xs"
+                />
+              </Field>
+            </div>
+          )}
+        </SettingsSection>
+      </div>
+    </>
+  );
+}
