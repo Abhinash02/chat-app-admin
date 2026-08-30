@@ -14,11 +14,11 @@ import { useUsers } from '../hooks/queries.js';
 
 const COLUMNS = [
   { key: 'user', label: 'User' },
-  { key: 'gender', label: 'Gender' },
+  { key: 'gender', label: 'Gender', className: 'hidden sm:table-cell' },
   { key: 'status', label: 'Status' },
   { key: 'coins', label: 'Coins', align: 'right' },
-  { key: 'points', label: 'Points', align: 'right' },
-  { key: 'seen', label: 'Last seen', align: 'right' },
+  { key: 'points', label: 'Points', align: 'right', className: 'hidden lg:table-cell' },
+  { key: 'seen', label: 'Last seen', align: 'right', className: 'hidden md:table-cell' },
 ];
 
 export function UsersPage() {
@@ -149,7 +149,7 @@ export function UsersPage() {
                           </span>
                         </Link>
                       </TCell>
-                      <TCell>
+                      <TCell className="hidden sm:table-cell">
                         <Badge tone={user.gender === 'female' ? 'brand' : 'info'}>
                           {user.gender === 'female' ? 'Girl' : 'Boy'}
                         </Badge>
@@ -163,10 +163,10 @@ export function UsersPage() {
                           {formatNumber(user.coinBalance)}
                         </span>
                       </TCell>
-                      <TCell align="right" className="text-ink-600">
+                      <TCell align="right" className="hidden text-ink-600 lg:table-cell">
                         {formatNumber(user.gamePoints)}
                       </TCell>
-                      <TCell align="right" className="text-xs text-ink-500">
+                      <TCell align="right" className="hidden text-xs text-ink-500 md:table-cell">
                         {user.isOnline ? 'Now' : formatRelative(user.lastSeenAt)}
                       </TCell>
                     </TRow>

@@ -16,9 +16,9 @@ import { useReports, useReviewReport } from '../hooks/queries.js';
 const COLUMNS = [
   { key: 'reported', label: 'Reported' },
   { key: 'reason', label: 'Reason' },
-  { key: 'reporter', label: 'Reported by' },
+  { key: 'reporter', label: 'Reported by', className: 'hidden lg:table-cell' },
   { key: 'status', label: 'Status' },
-  { key: 'when', label: 'Filed', align: 'right' },
+  { key: 'when', label: 'Filed', align: 'right', className: 'hidden sm:table-cell' },
 ];
 
 const REASON_TONES = {
@@ -219,13 +219,15 @@ export function ReportsPage() {
                         )}
                       </TCell>
 
-                      <TCell className="text-ink-600">{report.reporter.nickname ?? '—'}</TCell>
+                      <TCell className="hidden text-ink-600 lg:table-cell">
+                        {report.reporter.nickname ?? '—'}
+                      </TCell>
 
                       <TCell>
                         <StatusBadge status={report.status} />
                       </TCell>
 
-                      <TCell align="right" className="text-xs text-ink-500">
+                      <TCell align="right" className="hidden text-xs text-ink-500 sm:table-cell">
                         {formatRelative(report.createdAt)}
                       </TCell>
                     </TRow>

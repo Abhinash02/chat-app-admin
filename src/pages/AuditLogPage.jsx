@@ -14,8 +14,8 @@ import { useAuditLog } from '../hooks/queries.js';
 const COLUMNS = [
   { key: 'action', label: 'Action' },
   { key: 'admin', label: 'By' },
-  { key: 'target', label: 'Target' },
-  { key: 'detail', label: 'Detail' },
+  { key: 'target', label: 'Target', className: 'hidden lg:table-cell' },
+  { key: 'detail', label: 'Detail', className: 'hidden md:table-cell' },
   { key: 'when', label: 'When', align: 'right' },
 ];
 
@@ -126,7 +126,7 @@ export function AuditLogPage() {
                         )}
                       </TCell>
 
-                      <TCell>
+                      <TCell className="hidden lg:table-cell">
                         {entry.targetType === 'user' && entry.targetId ? (
                           <Link
                             to={`/users/${entry.targetId}`}
@@ -139,7 +139,7 @@ export function AuditLogPage() {
                         )}
                       </TCell>
 
-                      <TCell>
+                      <TCell className="hidden md:table-cell">
                         <ActionDetail entry={entry} />
                       </TCell>
 

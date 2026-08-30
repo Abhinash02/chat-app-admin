@@ -4,10 +4,14 @@ import { Button } from './Button.jsx';
 
 export function Table({ children, className = '' }) {
   return (
-    // Tables are the one place horizontal scrolling is right: an operator would
-    // rather scroll a table than lose columns to truncation.
+    /*
+     * Horizontal scroll is the fallback, not the plan. Low-priority columns are
+     * marked `hidden md:table-cell` by each page so a phone shows the three or
+     * four that matter, and the minimum width is small enough that what remains
+     * fits a 360px screen without scrolling at all.
+     */
     <div className={`w-full overflow-x-auto ${className}`}>
-      <table className="w-full min-w-[640px] border-collapse text-sm">{children}</table>
+      <table className="w-full min-w-[320px] border-collapse text-sm">{children}</table>
     </div>
   );
 }
@@ -20,8 +24,8 @@ export function THead({ columns }) {
           <th
             key={column.key ?? column.label}
             scope="col"
-            className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500
-                        ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
+            className={`px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500
+                        sm:px-4 ${column.align === 'right' ? 'text-right' : ''} ${column.className ?? ''}`}
           >
             {column.label}
           </th>
@@ -46,7 +50,8 @@ export function TRow({ onClick, children, className = '' }) {
 export function TCell({ align, className = '', children, ...props }) {
   return (
     <td
-      className={`px-4 py-3.5 align-middle text-ink-700 ${align === 'right' ? 'text-right' : ''} ${className}`}
+      className={`px-3 py-3.5 align-middle text-ink-700 sm:px-4
+                  ${align === 'right' ? 'text-right' : ''} ${className}`}
       {...props}
     >
       {children}
@@ -61,7 +66,7 @@ export function Pagination({ meta, page, onPageChange }) {
   const to = Math.min(page * meta.limit, meta.total);
 
   return (
-    <div className="flex items-center justify-between gap-4 border-t border-ink-200/70 px-4 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200/70 px-4 py-3">
       <p className="text-xs text-ink-500">
         Showing <span className="font-medium text-ink-700">{from}</span>–
         <span className="font-medium text-ink-700">{to}</span> of{' '}

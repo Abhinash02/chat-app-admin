@@ -17,10 +17,10 @@ const COLUMNS = [
   { key: 'user', label: 'Buyer' },
   { key: 'pack', label: 'Pack' },
   { key: 'amount', label: 'Amount', align: 'right' },
-  { key: 'method', label: 'Method' },
-  { key: 'proof', label: 'UPI reference' },
+  { key: 'method', label: 'Method', className: 'hidden lg:table-cell' },
+  { key: 'proof', label: 'UPI reference', className: 'hidden xl:table-cell' },
   { key: 'status', label: 'Status' },
-  { key: 'when', label: 'Placed', align: 'right' },
+  { key: 'when', label: 'Placed', align: 'right', className: 'hidden md:table-cell' },
   { key: 'actions', label: '', align: 'right' },
 ];
 
@@ -168,13 +168,13 @@ export function PaymentsPage() {
                           {formatPaise(order.amountInPaise)}
                         </TCell>
 
-                        <TCell>
+                        <TCell className="hidden lg:table-cell">
                           <Badge tone={order.provider === 'manual_upi' ? 'warning' : 'info'}>
                             {order.provider === 'manual_upi' ? 'UPI transfer' : 'Razorpay'}
                           </Badge>
                         </TCell>
 
-                        <TCell>
+                        <TCell className="hidden xl:table-cell">
                           {order.manualProof?.utr ? (
                             // Monospace so an operator can compare it character
                             // by character against their bank statement.
@@ -193,7 +193,7 @@ export function PaymentsPage() {
                           )}
                         </TCell>
 
-                        <TCell align="right" className="text-xs text-ink-500">
+                        <TCell align="right" className="hidden text-xs text-ink-500 md:table-cell">
                           {formatRelative(order.createdAt)}
                         </TCell>
 

@@ -15,11 +15,11 @@ import { useCampaigns, useCancelCampaign, useSetCampaignSchedule } from '../hook
 const COLUMNS = [
   { key: 'name', label: 'Campaign' },
   { key: 'channel', label: 'Channel' },
-  { key: 'audience', label: 'Audience', align: 'right' },
+  { key: 'audience', label: 'Audience', align: 'right', className: 'hidden lg:table-cell' },
   { key: 'delivered', label: 'Delivered', align: 'right' },
   { key: 'status', label: 'Status' },
-  { key: 'schedule', label: 'Schedule' },
-  { key: 'when', label: 'Created', align: 'right' },
+  { key: 'schedule', label: 'Schedule', className: 'hidden md:table-cell' },
+  { key: 'when', label: 'Created', align: 'right', className: 'hidden xl:table-cell' },
   { key: 'actions', label: '', align: 'right' },
 ];
 
@@ -215,7 +215,7 @@ export function CampaignsPage() {
                         <ChannelBadge channel={campaign.channel} />
                       </TCell>
 
-                      <TCell align="right" className="text-ink-600">
+                      <TCell align="right" className="hidden text-ink-600 lg:table-cell">
                         {formatNumber(campaign.stats?.targeted ?? 0)}
                       </TCell>
 
@@ -227,7 +227,7 @@ export function CampaignsPage() {
                         <StatusBadge status={campaign.status} />
                       </TCell>
 
-                      <TCell>
+                      <TCell className="hidden md:table-cell">
                         <ScheduleCell
                           campaign={campaign}
                           isToggling={setSchedule.isPending && setSchedule.variables?.campaignId === campaign._id}
@@ -240,7 +240,7 @@ export function CampaignsPage() {
                         />
                       </TCell>
 
-                      <TCell align="right" className="text-xs text-ink-500">
+                      <TCell align="right" className="hidden text-xs text-ink-500 xl:table-cell">
                         {formatRelative(campaign.createdAt)}
                       </TCell>
 
