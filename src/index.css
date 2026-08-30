@@ -49,9 +49,56 @@
   }
 }
 
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes dot-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0) scale(0.85);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-6px) scale(1);
+    opacity: 1;
+  }
+}
+
 @layer utilities {
   .card {
     @apply bg-white rounded-2xl border border-ink-200/70 shadow-sm;
+  }
+
+  /*
+   * A sweep across a placeholder block. The pseudo-element carries the
+   * gradient so the block itself keeps its own background, which is what makes
+   * the effect read as light passing over a surface rather than a moving bar.
+   */
+  .shimmer {
+    @apply relative overflow-hidden bg-ink-100;
+  }
+
+  .shimmer::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full;
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.65) 50%,
+      transparent 100%
+    );
+    animation: shimmer 1.4s infinite;
+  }
+
+  /* Respect a reader who has asked the OS to stop moving things. */
+  @media (prefers-reduced-motion: reduce) {
+    .shimmer::after {
+      animation: none;
+    }
   }
 
   .scrollbar-thin {

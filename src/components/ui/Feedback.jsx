@@ -1,34 +1,28 @@
-import { AlertTriangle, Inbox, Loader2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Inbox, RefreshCw } from 'lucide-react';
 
 import { Button } from './Button.jsx';
+import { DotsLoader, InlineSpinner, PageLoader, TableSkeleton } from './Loader.jsx';
 
 export function Spinner({ className = '' }) {
-  return <Loader2 className={`h-5 w-5 animate-spin text-ink-400 ${className}`} aria-hidden="true" />;
+  return <InlineSpinner className={className} />;
 }
 
 export function LoadingState({ label = 'Loading…', className = '' }) {
   return (
-    <div className={`flex items-center justify-center gap-2.5 py-14 text-sm text-ink-500 ${className}`} role="status">
-      <Spinner />
-      {label}
+    <div className={className}>
+      <PageLoader label={label} />
     </div>
   );
 }
+
+export { DotsLoader };
 
 /**
  * Skeleton rows keep the table's height stable between loading and loaded, so
  * the page does not jump under the operator's cursor.
  */
 export function SkeletonRows({ rows = 5, columns = 4 }) {
-  return Array.from({ length: rows }).map((_, rowIndex) => (
-    <tr key={rowIndex} className="border-b border-ink-100 last:border-0">
-      {Array.from({ length: columns }).map((__, columnIndex) => (
-        <td key={columnIndex} className="px-4 py-3.5">
-          <div className="h-3.5 animate-pulse rounded-full bg-ink-100" style={{ width: `${50 + ((rowIndex + columnIndex) % 4) * 12}%` }} />
-        </td>
-      ))}
-    </tr>
-  ));
+  return <TableSkeleton rows={rows} columns={columns} />;
 }
 
 export function EmptyState({ icon: Icon = Inbox, title, description, action, className = '' }) {
