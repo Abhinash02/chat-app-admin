@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Mail, Send, TestTube2, Users } from 'lucide-react';
+import { Bell, Mail, Repeat, Send, TestTube2, Users } from 'lucide-react';
 
 import { Button } from './ui/Button.jsx';
 import { Card, CardBody, CardHeader } from './ui/Card.jsx';
@@ -81,6 +81,17 @@ export function CampaignComposer({ onSent }) {
   const [push, setPush] = useState({ title: '', body: '', deepLink: '', sound: 'default' });
   const [email, setEmail] = useState({ subject: '', preheader: '', html: '', templateId: '' });
 
+  const [repeat, setRepeat] = useState({
+    rule: 'none',
+    hour: 9,
+    minute: 0,
+    weekday: 1,
+    // The audience's timezone, not the server's — "every day at 7pm" has to
+    // mean 7pm where the users are.
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata',
+    isEnabled: true,
+  });
+
   const [draftCampaignId, setDraftCampaignId] = useState(null);
   const [testEmail, setTestEmail] = useState('');
 
@@ -132,6 +143,7 @@ export function CampaignComposer({ onSent }) {
       ...(sendsEmail
         ? { email: { subject: email.subject, preheader: email.preheader, html: email.html } }
         : {}),
+      ...(repeat.rule !== 'none' ? { repeat } : {}),
     };
 
     const campaign = await createCampaign.mutateAsync(payload);
@@ -146,6 +158,7 @@ export function CampaignComposer({ onSent }) {
 
     setDraftCampaignId(null);
     setName('');
+    setRepeat((current) => ({ ...current, rule: 'none' }));
     setPush({ title: '', body: '', deepLink: '', sound: 'default' });
     setEmail({ subject: '', preheader: '', html: '', templateId: '' });
     onSent?.();
@@ -187,6 +200,104 @@ export function CampaignComposer({ onSent }) {
                 ))}
               </div>
             </div>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="When to send"
+            description="Send once now, or set it running on a schedule."
+          />
+          <CardBody className="space-y-4">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {[
+                { value: 'none', label: 'Send once', hint: 'Goes out when you press send.' },
+                { value: 'daily', label: 'Every day', hint: 'Same time, every day.' },
+                { value: 'weekly', label: 'Every week', hint: 'One chosen day each week.' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setRepeat((current) => ({ ...current, rule: option.value }))}
+                  className={`rounded-xl border px-3.5 py-2.5 text-left transition
+                              ${
+                                repeat.rule === option.value
+                                  ? 'border-brand-400 bg-brand-50'
+                                  : 'border-ink-300 hover:bg-ink-50'
+                              }`}
+                >
+                  <span
+                    className={`block text-sm ${
+                      repeat.rule === option.value ? 'font-medium text-brand-700' : 'text-ink-800'
+                    }`}
+                  >
+                    {option.label}
+                  </span>
+                  <span className="block text-xs text-ink-500">{option.hint}</span>
+                </button>
+              ))}
+            </div>
+
+            {repeat.rule !== 'none' && (
+              <div className="grid grid-cols-1 gap-4 border-t border-ink-200/70 pt-4 sm:grid-cols-3">
+                {repeat.rule === 'weekly' && (
+                  <Field label="Day">
+                    <Select
+                      value={repeat.weekday}
+                      onChange={(event) =>
+                        setRepeat((current) => ({ ...current, weekday: Number(event.target.value) }))
+                      }
+                    >
+                      {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(
+                        (day, dayIndex) => (
+                          <option key={day} value={dayIndex}>
+                            {day}
+                          </option>
+                        ),
+                      )}
+                    </Select>
+                  </Field>
+                )}
+
+                <Field label="Time">
+                  <Input
+                    type="time"
+                    value={`${String(repeat.hour).padStart(2, '0')}:${String(repeat.minute).padStart(2, '0')}`}
+                    onChange={(event) => {
+                      const [hour, minute] = event.target.value.split(':').map(Number);
+                      setRepeat((current) => ({ ...current, hour, minute }));
+                    }}
+                  />
+                </Field>
+
+                <Field label="Timezone" hint="The time above is local to this zone.">
+                  <Select
+                    value={repeat.timezone}
+                    onChange={(event) =>
+                      setRepeat((current) => ({ ...current, timezone: event.target.value }))
+                    }
+                  >
+                    {['Asia/Kolkata', 'Asia/Dubai', 'Europe/London', 'America/New_York', 'UTC'].map(
+                      (zone) => (
+                        <option key={zone} value={zone}>
+                          {zone}
+                        </option>
+                      ),
+                    )}
+                  </Select>
+                </Field>
+
+                <p className="rounded-xl bg-ink-50 px-3.5 py-2.5 text-xs text-ink-600 sm:col-span-3">
+                  <Repeat className="mr-1.5 inline h-3.5 w-3.5 align-text-bottom" aria-hidden="true" />
+                  Runs {repeat.rule === 'daily' ? 'every day' : 'every week'} at{' '}
+                  <strong className="text-ink-900">
+                    {String(repeat.hour).padStart(2, '0')}:{String(repeat.minute).padStart(2, '0')}
+                  </strong>{' '}
+                  ({repeat.timezone}). The audience is recounted each time, so it always reaches
+                  whoever qualifies that day.
+                </p>
+              </div>
+            )}
           </CardBody>
         </Card>
 
@@ -452,7 +563,9 @@ export function CampaignComposer({ onSent }) {
               isLoading={sendCampaign.isPending || createCampaign.isPending}
               onClick={handleSend}
             >
-              Send to {formatNumber(preview?.total ?? 0)} people
+              {repeat.rule === 'none'
+                ? `Send to ${formatNumber(preview?.total ?? 0)} people`
+                : `Start ${repeat.rule} schedule`}
             </Button>
 
             <Button
@@ -466,7 +579,9 @@ export function CampaignComposer({ onSent }) {
             </Button>
 
             <p className="text-center text-xs text-ink-500">
-              Sending starts immediately and cannot be undone once a message has left.
+              {repeat.rule === 'none'
+                ? 'Sending starts immediately and cannot be undone once a message has left.'
+                : 'The first run happens at the next scheduled time. You can pause it from the list.'}
             </p>
           </CardBody>
         </Card>

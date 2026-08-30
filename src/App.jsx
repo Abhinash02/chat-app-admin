@@ -35,6 +35,9 @@ const AuditLogPage = lazy(() =>
 const CampaignsPage = lazy(() =>
   import('./pages/CampaignsPage.jsx').then((m) => ({ default: m.CampaignsPage })),
 );
+const BannersPage = lazy(() =>
+  import('./pages/BannersPage.jsx').then((m) => ({ default: m.BannersPage })),
+);
 
 function RequireAuth({ children }) {
   const { isAuthenticated, isRestoring } = useAuth();
@@ -84,6 +87,7 @@ export function App() {
           <Route path="pricing" element={<PricingPage />} />
           <Route path="payments" element={<PaymentsPage />} />
           <Route path="campaigns" element={<CampaignsPage />} />
+          <Route path="banners" element={<BannersPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="appearance" element={<AppearancePage />} />
           <Route path="settings" element={<SettingsPage />} />

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, History, Mail, Megaphone, Plus, Send, StopCircle } from 'lucide-react';
+import { Bell, History, Mail, Megaphone, Pause, Play, Plus, Repeat, Send, StopCircle } from 'lucide-react';
 
 import { Badge, StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
@@ -10,7 +10,7 @@ import { EmptyState, ErrorState, SkeletonRows } from '../components/ui/Feedback.
 import { PageHeader } from '../components/layout/AppLayout.jsx';
 import { Pagination, TCell, THead, TRow, Table } from '../components/ui/Table.jsx';
 import { formatNumber, formatRelative } from '../lib/format.js';
-import { useCampaigns, useCancelCampaign } from '../hooks/queries.js';
+import { useCampaigns, useCancelCampaign, useSetCampaignSchedule } from '../hooks/queries.js';
 
 const COLUMNS = [
   { key: 'name', label: 'Campaign' },
@@ -18,6 +18,7 @@ const COLUMNS = [
   { key: 'audience', label: 'Audience', align: 'right' },
   { key: 'delivered', label: 'Delivered', align: 'right' },
   { key: 'status', label: 'Status' },
+  { key: 'schedule', label: 'Schedule' },
   { key: 'when', label: 'Created', align: 'right' },
   { key: 'actions', label: '', align: 'right' },
 ];
@@ -84,6 +85,50 @@ function DeliveryCell({ campaign }) {
   );
 }
 
+/** Repeat rule as a sentence, with the next run when one is booked. */
+function ScheduleCell({ campaign, onToggle, isToggling }) {
+  const repeat = campaign.repeat;
+
+  if (!repeat || repeat.rule === 'none') {
+    return <span className="text-xs text-ink-400">Once</span>;
+  }
+
+  const time = `${String(repeat.hour).padStart(2, '0')}:${String(repeat.minute).padStart(2, '0')}`;
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const when = repeat.rule === 'daily' ? 'Daily' : days[repeat.weekday ?? 1];
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="min-w-0">
+        <span className="flex items-center gap-1 text-xs font-medium text-ink-800">
+          <Repeat className="h-3 w-3 shrink-0" aria-hidden="true" />
+          {when} {time}
+        </span>
+        <span className="block text-[11px] text-ink-500">
+          {repeat.isEnabled
+            ? repeat.nextRunAt
+              ? `next ${formatRelative(repeat.nextRunAt)}`
+              : 'no run booked'
+            : 'paused'}
+          {repeat.runCount > 0 ? ` · ${repeat.runCount} sent` : ''}
+        </span>
+      </div>
+
+      <Button
+        size="sm"
+        variant="ghost"
+        className="ml-auto"
+        aria-label={repeat.isEnabled ? 'Pause schedule' : 'Resume schedule'}
+        title={repeat.isEnabled ? 'Pause' : 'Resume'}
+        isLoading={isToggling}
+        onClick={() => onToggle(campaign)}
+      >
+        {repeat.isEnabled ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+      </Button>
+    </div>
+  );
+}
+
 export function CampaignsPage() {
   const [isComposing, setIsComposing] = useState(false);
   const [page, setPage] = useState(1);
@@ -91,6 +136,7 @@ export function CampaignsPage() {
 
   const { data, isLoading, error, refetch } = useCampaigns({ page, limit: 15 });
   const cancel = useCancelCampaign();
+  const setSchedule = useSetCampaignSchedule();
 
   const campaigns = data?.items ?? [];
 
@@ -179,6 +225,19 @@ export function CampaignsPage() {
 
                       <TCell>
                         <StatusBadge status={campaign.status} />
+                      </TCell>
+
+                      <TCell>
+                        <ScheduleCell
+                          campaign={campaign}
+                          isToggling={setSchedule.isPending && setSchedule.variables?.campaignId === campaign._id}
+                          onToggle={(target) =>
+                            setSchedule.mutate({
+                              campaignId: target._id,
+                              repeat: { ...target.repeat, isEnabled: !target.repeat.isEnabled },
+                            })
+                          }
+                        />
                       </TCell>
 
                       <TCell align="right" className="text-xs text-ink-500">

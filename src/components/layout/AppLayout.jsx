@@ -4,6 +4,7 @@ import {
   BadgeIndianRupee,
   CreditCard,
   Flag,
+  GalleryHorizontalEnd,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -41,7 +42,10 @@ const NAV_SECTIONS = [
   },
   {
     label: 'Outreach',
-    items: [{ to: '/campaigns', label: 'Campaigns', icon: Megaphone }],
+    items: [
+      { to: '/campaigns', label: 'Campaigns', icon: Megaphone },
+      { to: '/banners', label: 'Banners', icon: GalleryHorizontalEnd },
+    ],
   },
   {
     label: 'Configuration',

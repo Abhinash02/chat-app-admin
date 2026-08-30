@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Palette, Plus, Save, Sparkles, Trash2 } from 'lucide-react';
+import { CalendarClock, Check, Palette, Plus, Save, Sparkles, Trash2 } from 'lucide-react';
 
 import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
@@ -8,6 +8,7 @@ import { ConfirmDialog, Modal } from '../components/ui/Modal.jsx';
 import { ErrorState, LoadingState } from '../components/ui/Feedback.jsx';
 import { ColorInput, Field, Input, NumberInput } from '../components/ui/Field.jsx';
 import { PageHeader } from '../components/layout/AppLayout.jsx';
+import { ScheduleThemeDialog } from '../components/ScheduleThemeDialog.jsx';
 import { ThemePreview, ThemeSwatches } from '../components/ThemePreview.jsx';
 import {
   useActivateTheme,
@@ -164,7 +165,7 @@ export function AppearancePage() {
     <>
       <PageHeader
         title="Appearance"
-        description="Pick a look and make it live. Connected apps re-colour immediately — no update needed."
+        description="Pick a look and make it live — connected apps re-colour immediately. Festival themes can be booked ahead and swap themselves in and out."
         action={
           <Button icon={Plus} onClick={() => setDialog('create')}>
             New theme
@@ -198,7 +199,15 @@ export function AppearancePage() {
                       Live
                     </Badge>
                   )}
-                  {theme.isPreset && !theme.isActive && <Badge tone="neutral">Built in</Badge>}
+                  {theme.scheduledFrom && !theme.isActive && (
+                    <Badge tone="warning">
+                      <CalendarClock className="h-3 w-3" aria-hidden="true" />
+                      Booked
+                    </Badge>
+                  )}
+                  {theme.isPreset && !theme.isActive && !theme.scheduledFrom && (
+                    <Badge tone="neutral">Built in</Badge>
+                  )}
                 </div>
 
                 <ThemeSwatches colors={theme.colors} />
@@ -223,11 +232,22 @@ export function AppearancePage() {
                   </Button>
                 )}
 
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="ml-auto"
+                  aria-label={`Schedule ${theme.name}`}
+                  title="Schedule"
+                  onClick={() => setDialog({ type: 'schedule', theme })}
+                >
+                  <CalendarClock className="h-4 w-4" />
+                </Button>
+
                 {!theme.isPreset && !theme.isActive && (
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="ml-auto text-red-600 hover:bg-red-50"
+                    className="text-red-600 hover:bg-red-50"
                     aria-label={`Delete ${theme.name}`}
                     onClick={() => setDialog({ type: 'delete', theme })}
                   >
@@ -356,6 +376,14 @@ export function AppearancePage() {
             </Card>
           </div>
         </div>
+      )}
+
+      {dialog?.type === 'schedule' && (
+        <ScheduleThemeDialog
+          theme={dialog.theme}
+          themes={themes}
+          onClose={() => setDialog(null)}
+        />
       )}
 
       <CreateThemeDialog

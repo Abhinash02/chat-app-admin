@@ -22,6 +22,7 @@ export const queryKeys = {
   campaigns: (params) => ['campaigns', params],
   campaign: (campaignId) => ['campaign', campaignId],
   templates: ['email-templates'],
+  banners: ['banners'],
   reach: ['delivery-reach'],
 };
 
@@ -128,6 +129,13 @@ export function useDeliveryReach() {
   return useQuery({
     queryKey: queryKeys.reach,
     queryFn: () => request({ method: 'GET', url: '/notifications/reach' }),
+  });
+}
+
+export function useBanners() {
+  return useQuery({
+    queryKey: queryKeys.banners,
+    queryFn: () => request({ method: 'GET', url: '/banners/admin/all' }),
   });
 }
 
@@ -364,5 +372,73 @@ export function useDeleteTemplate() {
     mutationFn: (templateId) => request({ method: 'DELETE', url: `/notifications/templates/${templateId}` }),
     successMessage: 'Template deleted',
     invalidate: [queryKeys.templates],
+  });
+}
+
+
+// ----- Banners -------------------------------------------------------------
+
+/**
+ * Banners carry an image, so these go out as multipart rather than JSON.
+ * Axios sets the boundary itself when handed a FormData, which is why no
+ * Content-Type is specified here — setting it by hand omits the boundary and
+ * the upload fails with a confusing parse error.
+ */
+function toBannerFormData({ image, ...fields }) {
+  const form = new FormData();
+
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined || value === null) continue;
+    form.append(key, value instanceof Date ? value.toISOString() : String(value));
+  }
+
+  if (image) form.append('image', image);
+
+  return form;
+}
+
+export function useCreateBanner() {
+  return useApiMutation({
+    mutationFn: (payload) =>
+      request({ method: 'POST', url: '/banners/admin', data: toBannerFormData(payload) }),
+    successMessage: 'Banner created',
+    invalidate: [queryKeys.banners],
+  });
+}
+
+export function useUpdateBanner() {
+  return useApiMutation({
+    mutationFn: ({ bannerId, ...payload }) =>
+      request({ method: 'PATCH', url: `/banners/admin/${bannerId}`, data: toBannerFormData(payload) }),
+    successMessage: 'Banner saved',
+    invalidate: [queryKeys.banners],
+  });
+}
+
+export function useDeleteBanner() {
+  return useApiMutation({
+    mutationFn: (bannerId) => request({ method: 'DELETE', url: `/banners/admin/${bannerId}` }),
+    successMessage: 'Banner removed',
+    invalidate: [queryKeys.banners],
+  });
+}
+
+// ----- Scheduling ----------------------------------------------------------
+
+export function useScheduleTheme() {
+  return useApiMutation({
+    mutationFn: ({ themeId, ...payload }) =>
+      request({ method: 'POST', url: `/theme/${themeId}/schedule`, data: payload }),
+    successMessage: 'Schedule saved',
+    invalidate: [queryKeys.themes, queryKeys.activeTheme],
+  });
+}
+
+export function useSetCampaignSchedule() {
+  return useApiMutation({
+    mutationFn: ({ campaignId, repeat }) =>
+      request({ method: 'POST', url: `/notifications/campaigns/${campaignId}/schedule`, data: { repeat } }),
+    successMessage: 'Schedule saved',
+    invalidate: [['campaigns']],
   });
 }
