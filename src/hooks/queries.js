@@ -291,12 +291,42 @@ export function useRejectOrder() {
   });
 }
 
+export function useRefundOrder() {
+  return useApiMutation({
+    mutationFn: ({ orderId, reason }) =>
+      request({ method: 'POST', url: `/payments/admin/orders/${orderId}/refund`, data: { reason } }),
+    successMessage: 'Payment refunded successfully',
+    invalidate: [['orders'], queryKeys.dashboard],
+  });
+}
+
 export function useReviewReport() {
   return useApiMutation({
     mutationFn: ({ reportId, status, reviewNote }) =>
       request({ method: 'PATCH', url: `/reports/${reportId}`, data: { status, reviewNote } }),
     successMessage: 'Report updated',
     invalidate: [['reports']],
+  });
+}
+
+export function useFeedback(params) {
+  return useQuery({
+    queryKey: ['feedback', params],
+    queryFn: () => requestList({ method: 'GET', url: '/feedback', params }),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useUpdateFeedbackStatus() {
+  return useApiMutation({
+    mutationFn: ({ feedbackId, status, adminNote }) =>
+      request({
+        method: 'PATCH',
+        url: `/feedback/${feedbackId}/status`,
+        data: { status, adminNote },
+      }),
+    successMessage: 'Feedback updated (notification & email sent to user)',
+    invalidate: [['feedback']],
   });
 }
 
@@ -440,5 +470,81 @@ export function useSetCampaignSchedule() {
       request({ method: 'POST', url: `/notifications/campaigns/${campaignId}/schedule`, data: { repeat } }),
     successMessage: 'Schedule saved',
     invalidate: [['campaigns']],
+  });
+}
+
+// ----- Events & Promotions -------------------------------------------------
+
+export function useEvents(params) {
+  return useQuery({
+    queryKey: ['events', params],
+    queryFn: () => requestList({ method: 'GET', url: '/events/admin', params }),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useCreateEvent() {
+  return useApiMutation({
+    mutationFn: (payload) => request({ method: 'POST', url: '/events/admin', data: payload }),
+    successMessage: 'Event published (notifications dispatched)',
+    invalidate: [['events']],
+  });
+}
+
+export function useUpdateEvent() {
+  return useApiMutation({
+    mutationFn: ({ eventId, ...payload }) =>
+      request({ method: 'PATCH', url: `/events/admin/${eventId}`, data: payload }),
+    successMessage: 'Event updated',
+    invalidate: [['events']],
+  });
+}
+
+export function useDeleteEvent() {
+  return useApiMutation({
+    mutationFn: (eventId) => request({ method: 'DELETE', url: `/events/admin/${eventId}` }),
+    successMessage: 'Event removed',
+    invalidate: [['events']],
+  });
+}
+
+export function useBroadcastEvent() {
+  return useApiMutation({
+    mutationFn: ({ eventId, sendPush, sendEmail }) =>
+      request({
+        method: 'POST',
+        url: `/events/admin/${eventId}/broadcast`,
+        data: { sendPush, sendEmail },
+      }),
+    successMessage: (res) =>
+      `Broadcast sent! (${res.pushSent ?? 0} push notifications, ${res.emailsSent ?? 0} emails)`,
+    invalidate: [['events']],
+  });
+}
+
+// ----- Redeem Codes & Vouchers ---------------------------------------------
+
+export function useRedeemCodes(params) {
+  return useQuery({
+    queryKey: ['redeem-codes', params],
+    queryFn: () => requestList({ method: 'GET', url: '/payments/admin/redeem-codes', params }),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useCreateRedeemCode() {
+  return useApiMutation({
+    mutationFn: (payload) =>
+      request({ method: 'POST', url: '/payments/admin/redeem-codes', data: payload }),
+    successMessage: 'Promo code generated (alerts dispatched to target users)',
+    invalidate: [['redeem-codes']],
+  });
+}
+
+export function useDeleteRedeemCode() {
+  return useApiMutation({
+    mutationFn: (id) => request({ method: 'DELETE', url: `/payments/admin/redeem-codes/${id}` }),
+    successMessage: 'Redeem code removed',
+    invalidate: [['redeem-codes']],
   });
 }

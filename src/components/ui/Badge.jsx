@@ -41,6 +41,7 @@ const STATUS_TONES = {
   awaiting_verification: 'warning',
   failed: 'danger',
   rejected: 'danger',
+  refunded: 'purple',
   expired: 'neutral',
   open: 'warning',
   reviewing: 'info',

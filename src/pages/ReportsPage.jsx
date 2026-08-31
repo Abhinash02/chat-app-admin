@@ -11,10 +11,10 @@ import { Field, Select, Textarea } from '../components/ui/Field.jsx';
 import { PageHeader } from '../components/layout/AppLayout.jsx';
 import { Pagination, TCell, THead, TRow, Table } from '../components/ui/Table.jsx';
 import { formatDateTime, formatRelative } from '../lib/format.js';
-import { useReports, useReviewReport } from '../hooks/queries.js';
+import { useReports, useReviewReport, useSuspendUser } from '../hooks/queries.js';
 
 const COLUMNS = [
-  { key: 'reported', label: 'Reported' },
+  { key: 'reported', label: 'Reported User' },
   { key: 'reason', label: 'Reason' },
   { key: 'reporter', label: 'Reported by', className: 'hidden lg:table-cell' },
   { key: 'status', label: 'Status' },
@@ -34,7 +34,9 @@ const REASON_TONES = {
 function ReviewDialog({ report, onClose }) {
   const [status, setStatus] = useState('actioned');
   const [note, setNote] = useState('');
+  const [suspendReason, setSuspendReason] = useState('Multiple policy violation reports');
   const review = useReviewReport();
+  const suspendUser = useSuspendUser();
 
   if (!report) return null;
 
@@ -42,6 +44,22 @@ function ReviewDialog({ report, onClose }) {
     await review.mutateAsync({ reportId: report.id, status, reviewNote: note.trim() });
     onClose();
   }
+
+  async function handleSuspend() {
+    if (!report.reportedUser?.id) return;
+    await suspendUser.mutateAsync({
+      userId: report.reportedUser.id,
+      reason: suspendReason.trim() || `Suspended due to ${report.totalUserReports ?? 3} reports`,
+    });
+    await review.mutateAsync({
+      reportId: report.id,
+      status: 'actioned',
+      reviewNote: `Account suspended (${report.totalUserReports ?? 3}+ reports)`,
+    });
+    onClose();
+  }
+
+  const isRepeatOffender = (report.totalUserReports ?? 1) >= 3;
 
   return (
     <Modal
@@ -52,7 +70,7 @@ function ReviewDialog({ report, onClose }) {
       size="lg"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={review.isPending}>
+          <Button variant="ghost" onClick={onClose} disabled={review.isPending || suspendUser.isPending}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} isLoading={review.isPending}>
@@ -62,6 +80,27 @@ function ReviewDialog({ report, onClose }) {
       }
     >
       <div className="space-y-5">
+        {isRepeatOffender && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs text-red-700">
+            <p className="font-bold flex items-center gap-1.5 text-red-800 text-sm">
+              ⚠️ Repeat Offender ({report.totalUserReports} Reports Filed)
+            </p>
+            <p className="mt-1 leading-relaxed">
+              This account has accumulated 3 or more distinct user reports. Recommended action is account suspension.
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="danger"
+                isLoading={suspendUser.isPending}
+                onClick={handleSuspend}
+              >
+                🚫 Suspend Account Now
+              </Button>
+            </div>
+          </div>
+        )}
+
         {report.details && (
           <div>
             <p className="mb-1 text-xs font-medium text-ink-500">What they said</p>
@@ -74,8 +113,6 @@ function ReviewDialog({ report, onClose }) {
             <p className="mb-1 text-xs font-medium text-ink-500">
               Messages from the reported account, captured when the report was filed
             </p>
-            {/* Snapshots, not live messages: the sender can delete the originals
-                and a moderator still needs to see what was reported. */}
             <ul className="scrollbar-thin max-h-56 space-y-2 overflow-y-auto rounded-xl bg-ink-50 p-3">
               {report.messageSnapshots.map((snapshot, index) => (
                 <li key={snapshot.messageId ?? index} className="text-sm">
@@ -114,14 +151,10 @@ function ReviewDialog({ report, onClose }) {
           <Textarea
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            placeholder="e.g. Suspended for 7 days, second offence"
+            placeholder="e.g. Actioned and warned user"
             maxLength={500}
           />
         </Field>
-
-        <p className="text-xs text-ink-500">
-          Marking a report actioned does not suspend anyone by itself — do that from the account page.
-        </p>
       </div>
     </Modal>
   );
@@ -198,14 +231,17 @@ export function ReportsPage() {
                   reports.map((report) => (
                     <TRow key={report.id} onClick={() => setReviewing(report)}>
                       <TCell>
-                        <span className="font-medium text-ink-900">
-                          {report.reportedUser.nickname ?? 'Unknown'}
-                        </span>
-                        {report.reportedUser.status && (
-                          <span className="ml-2">
-                            <StatusBadge status={report.reportedUser.status} />
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-medium text-ink-900">
+                            {report.reportedUser.nickname ?? 'Unknown'}
                           </span>
-                        )}
+                          {report.reportedUser.status && (
+                            <StatusBadge status={report.reportedUser.status} />
+                          )}
+                          {(report.totalUserReports ?? 1) >= 3 && (
+                            <Badge tone="danger">⚠️ {report.totalUserReports} Reports</Badge>
+                          )}
+                        </div>
                       </TCell>
 
                       <TCell>

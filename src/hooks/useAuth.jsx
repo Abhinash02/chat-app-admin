@@ -41,7 +41,7 @@ export function AuthProvider({ children }) {
       .then((freshUser) => {
         if (cancelled) return;
         setUser(freshUser);
-        authStorage.setSession({ tokens: null, user: freshUser });
+        authStorage.setUser(freshUser);
         connectSocket();
       })
       .catch(() => {

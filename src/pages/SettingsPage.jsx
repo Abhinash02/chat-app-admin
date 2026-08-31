@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Gamepad2, MessageSquare, MapPin, Radio, Save, ShieldAlert, Wallet } from 'lucide-react';
+import { Gamepad2, MessageSquare, MapPin, Radio, Save, ShieldAlert, Smartphone, Wallet } from 'lucide-react';
 
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
@@ -397,6 +397,77 @@ export function SettingsPage() {
                   placeholder={'word one\nword two'}
                   disabled={!draft.profanityFilterEnabled}
                   className="font-mono text-xs"
+                />
+              </Field>
+            </div>
+          )}
+        </SettingsSection>
+
+        <SettingsSection
+          icon={Smartphone}
+          title="App Version & Google Play"
+          description="Manage Google Play release versions, minimum supported version, and force update requirements."
+          group="appVersion"
+          settings={settings}
+          transform={(draft) => ({
+            latestVersion: draft?.latestVersion,
+            minimumVersion: draft?.minimumVersion,
+            latestVersionCode: Number(draft?.latestVersionCode || 1),
+            forceUpdate: Boolean(draft?.forceUpdate),
+            playStoreUrl: draft?.playStoreUrl,
+            appStoreUrl: draft?.appStoreUrl,
+            updateMessage: draft?.updateMessage,
+          })}
+        >
+          {({ draft, set }) => (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <Field label="Latest App Version" hint="e.g. 1.0.0 (Shown in Play Store)">
+                  <Input
+                    value={draft?.latestVersion ?? '1.0.0'}
+                    onChange={(event) => set('latestVersion', event.target.value)}
+                    placeholder="1.0.0"
+                  />
+                </Field>
+
+                <Field label="Version Code (Android)" hint="Integer build number (e.g. 1, 2)">
+                  <NumberInput
+                    value={draft?.latestVersionCode ?? 1}
+                    min={1}
+                    max={100000}
+                    onChange={(event) => set('latestVersionCode', event.target.value)}
+                  />
+                </Field>
+
+                <Field label="Minimum Required Version" hint="Users below this MUST update">
+                  <Input
+                    value={draft?.minimumVersion ?? '1.0.0'}
+                    onChange={(event) => set('minimumVersion', event.target.value)}
+                    placeholder="1.0.0"
+                  />
+                </Field>
+              </div>
+
+              <Toggle
+                checked={draft?.forceUpdate ?? false}
+                onChange={(value) => set('forceUpdate', value)}
+                label="Enforce Mandatory Update (Force Update)"
+                description="When enabled, users on versions below 'Minimum Required Version' are prompted to update before continuing."
+              />
+
+              <Field label="Google Play Store URL" hint="Direct link to your app on Google Play Store.">
+                <Input
+                  value={draft?.playStoreUrl ?? ''}
+                  onChange={(event) => set('playStoreUrl', event.target.value)}
+                  placeholder="https://play.google.com/store/apps/details?id=app.vibechat.mobile"
+                />
+              </Field>
+
+              <Field label="Update Announcement / Notes" hint="Shown to mobile users when an update is available.">
+                <Input
+                  value={draft?.updateMessage ?? ''}
+                  onChange={(event) => set('updateMessage', event.target.value)}
+                  placeholder="A new version of Vibe is available with new features and performance improvements!"
                 />
               </Field>
             </div>

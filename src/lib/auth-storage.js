@@ -41,15 +41,23 @@ export const authStorage = {
     }
   },
 
-  setSession({ tokens, user }) {
-    write(ACCESS_TOKEN_KEY, tokens?.accessToken ?? null);
-    write(REFRESH_TOKEN_KEY, tokens?.refreshToken ?? null);
+  setUser(user) {
     write(USER_KEY, user ? JSON.stringify(user) : null);
   },
 
+  setSession({ tokens, user }) {
+    if (tokens) {
+      if (tokens.accessToken !== undefined) write(ACCESS_TOKEN_KEY, tokens.accessToken ?? null);
+      if (tokens.refreshToken !== undefined) write(REFRESH_TOKEN_KEY, tokens.refreshToken ?? null);
+    }
+    if (user !== undefined) {
+      write(USER_KEY, user ? JSON.stringify(user) : null);
+    }
+  },
+
   setTokens(tokens) {
-    write(ACCESS_TOKEN_KEY, tokens?.accessToken ?? null);
-    write(REFRESH_TOKEN_KEY, tokens?.refreshToken ?? null);
+    if (tokens?.accessToken) write(ACCESS_TOKEN_KEY, tokens.accessToken);
+    if (tokens?.refreshToken) write(REFRESH_TOKEN_KEY, tokens.refreshToken);
   },
 
   clear() {

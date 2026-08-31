@@ -108,12 +108,12 @@ function BannerDialog({ editing, onClose }) {
       <div className="space-y-4">
         <Field
           label="Image"
-          hint="Wide and short works best — roughly 3:1. JPEG, PNG or WebP, up to 5 MB."
+          hint="Wide panoramic banner like LinkedIn (4:1 ratio, e.g. 1200x300 or 1584x396 px). JPEG, PNG or WebP, up to 5 MB."
         >
           <div className="space-y-2">
             {preview && (
               <div className="overflow-hidden rounded-xl border border-ink-200">
-                <img src={preview} alt="" className="h-28 w-full object-cover" />
+                <img src={preview} alt="" className="aspect-[4/1] w-full object-cover" />
               </div>
             )}
             <input
@@ -255,7 +255,7 @@ export function BannersPage() {
           {banners.map((banner) => (
             <Card key={banner.id} className="overflow-hidden">
               <div className="relative">
-                <img src={banner.imageUrl} alt="" className="h-32 w-full object-cover" />
+                <img src={banner.imageUrl} alt="" className="aspect-[4/1] w-full object-cover" />
                 <div className="absolute right-2 top-2 flex gap-1.5">
                   {banner.isLive ? (
                     <Badge tone="success">Live</Badge>

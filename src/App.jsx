@@ -23,6 +23,9 @@ const PaymentsPage = lazy(() =>
   import('./pages/PaymentsPage.jsx').then((m) => ({ default: m.PaymentsPage })),
 );
 const ReportsPage = lazy(() => import('./pages/ReportsPage.jsx').then((m) => ({ default: m.ReportsPage })));
+const FeedbackPage = lazy(() =>
+  import('./pages/FeedbackPage.jsx').then((m) => ({ default: m.FeedbackPage })),
+);
 const AppearancePage = lazy(() =>
   import('./pages/AppearancePage.jsx').then((m) => ({ default: m.AppearancePage })),
 );
@@ -34,6 +37,12 @@ const AuditLogPage = lazy(() =>
 );
 const CampaignsPage = lazy(() =>
   import('./pages/CampaignsPage.jsx').then((m) => ({ default: m.CampaignsPage })),
+);
+const EventsPage = lazy(() =>
+  import('./pages/EventsPage.jsx').then((m) => ({ default: m.EventsPage })),
+);
+const RedeemCodesPage = lazy(() =>
+  import('./pages/RedeemCodesPage.jsx').then((m) => ({ default: m.RedeemCodesPage })),
 );
 const BannersPage = lazy(() =>
   import('./pages/BannersPage.jsx').then((m) => ({ default: m.BannersPage })),
@@ -86,9 +95,12 @@ export function App() {
           <Route path="users/:userId" element={<UserDetailPage />} />
           <Route path="pricing" element={<PricingPage />} />
           <Route path="payments" element={<PaymentsPage />} />
+          <Route path="redeem-codes" element={<RedeemCodesPage />} />
+          <Route path="events" element={<EventsPage />} />
           <Route path="campaigns" element={<CampaignsPage />} />
           <Route path="banners" element={<BannersPage />} />
           <Route path="reports" element={<ReportsPage />} />
+          <Route path="feedback" element={<FeedbackPage />} />
           <Route path="appearance" element={<AppearancePage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="audit-log" element={<AuditLogPage />} />

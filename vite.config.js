@@ -9,8 +9,8 @@ export default defineConfig({
     proxy: {
       // Talk to the API on the same origin in development, so cookies and CORS
       // behave the way they will behind a reverse proxy in production.
-      '/api': { target: 'http://localhost:5000', changeOrigin: true },
-      '/uploads': { target: 'http://localhost:5000', changeOrigin: true },
+      '/api': { target: 'http://127.0.0.1:5000', changeOrigin: true },
+      '/uploads': { target: 'http://127.0.0.1:5000', changeOrigin: true },
     },
   },
 });

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Check, CreditCard, Receipt, X } from 'lucide-react';
+import { Check, CreditCard, Receipt, RotateCcw, X } from 'lucide-react';
 
 import { Badge, StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
@@ -11,7 +11,7 @@ import { Field, Input, Select } from '../components/ui/Field.jsx';
 import { PageHeader } from '../components/layout/AppLayout.jsx';
 import { Pagination, TCell, THead, TRow, Table } from '../components/ui/Table.jsx';
 import { formatNumber, formatPaise, formatRelative } from '../lib/format.js';
-import { useApproveOrder, useOrders, useRejectOrder } from '../hooks/queries.js';
+import { useApproveOrder, useOrders, useRefundOrder, useRejectOrder } from '../hooks/queries.js';
 
 const COLUMNS = [
   { key: 'user', label: 'Buyer' },
@@ -53,6 +53,53 @@ function RejectDialog({ isOpen, onClose, order }) {
           autoFocus
         />
       </Field>
+    </ConfirmDialog>
+  );
+}
+
+function RefundDialog({ isOpen, onClose, order }) {
+  const [reason, setReason] = useState('');
+  const refund = useRefundOrder();
+
+  async function handleConfirm() {
+    await refund.mutateAsync({ orderId: order.id, reason: reason.trim() });
+    setReason('');
+    onClose();
+  }
+
+  return (
+    <ConfirmDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      onConfirm={handleConfirm}
+      title="⚠️ Refund this payment?"
+      message={
+        order
+          ? `You are issuing a refund of ${formatPaise(order.amountInPaise)} for ${
+              order.user?.nickname ?? 'the buyer'
+            }. This will automatically trigger payment reversal at the gateway and deduct ${formatNumber(
+              order.totalCoins,
+            )} coins from the customer's wallet.`
+          : ''
+      }
+      confirmLabel="Yes, Issue Refund"
+      variant="danger"
+      isLoading={refund.isPending}
+    >
+      <div className="mt-3 space-y-3">
+        <div className="rounded-xl border border-red-200 bg-red-50/60 p-3 text-xs text-red-700">
+          ⚠️ <strong>Instant Action:</strong> For Razorpay, funds are returned directly to the original bank/card. For Manual UPI, record your notes after reversing the transfer.
+        </div>
+        <Field label="Reason for Refund">
+          <Input
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="e.g. Duplicate payment / Accidental purchase"
+            maxLength={200}
+            autoFocus
+          />
+        </Field>
+      </div>
     </ConfirmDialog>
   );
 }
@@ -99,6 +146,7 @@ export function PaymentsPage() {
             <option value="">All orders</option>
             <option value="awaiting_verification">Waiting for confirmation</option>
             <option value="paid">Paid</option>
+            <option value="refunded">Refunded</option>
             <option value="created">Started, not paid</option>
             <option value="rejected">Rejected</option>
             <option value="failed">Failed</option>
@@ -138,6 +186,7 @@ export function PaymentsPage() {
                 ) : (
                   orders.map((order) => {
                     const needsReview = order.status === 'awaiting_verification';
+                    const isPaid = order.status === 'paid';
 
                     return (
                       <TRow key={order.id} className={needsReview ? 'bg-amber-50/40' : ''}>
@@ -191,6 +240,11 @@ export function PaymentsPage() {
                               {order.rejectionReason}
                             </span>
                           )}
+                          {order.refundReason && (
+                            <span className="block max-w-[14rem] truncate text-xs font-medium text-purple-600">
+                              {order.refundReason}
+                            </span>
+                          )}
                         </TCell>
 
                         <TCell align="right" className="hidden text-xs text-ink-500 md:table-cell">
@@ -219,6 +273,18 @@ export function PaymentsPage() {
                                 <X className="h-4 w-4" />
                               </Button>
                             </div>
+                          )}
+
+                          {isPaid && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              icon={RotateCcw}
+                              className="text-red-600 hover:border-red-300 hover:bg-red-50"
+                              onClick={() => setDialog({ type: 'refund', order })}
+                            >
+                              Refund
+                            </Button>
                           )}
                         </TCell>
                       </TRow>
@@ -265,6 +331,10 @@ export function PaymentsPage() {
 
       {dialog?.type === 'reject' && (
         <RejectDialog isOpen onClose={() => setDialog(null)} order={dialog.order} />
+      )}
+
+      {dialog?.type === 'refund' && (
+        <RefundDialog isOpen onClose={() => setDialog(null)} order={dialog.order} />
       )}
 
       {!isLoading && orders.length === 0 && status === '' && (

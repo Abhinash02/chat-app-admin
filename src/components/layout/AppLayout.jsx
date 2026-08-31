@@ -1,14 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   BadgeIndianRupee,
+  Calendar,
   CreditCard,
   Flag,
   GalleryHorizontalEnd,
+  Gift,
   LayoutDashboard,
   LogOut,
   Megaphone,
   Menu,
+  MessageSquareHeart,
   Palette,
   ScrollText,
   Settings,
@@ -18,8 +22,10 @@ import {
 
 import { Avatar } from '../ui/Avatar.jsx';
 import { Button } from '../ui/Button.jsx';
+import { ConfirmDialog } from '../ui/Modal.jsx';
 import { useAuth } from '../../hooks/auth-context.js';
-import { useDashboard, useOrders, useReports } from '../../hooks/queries.js';
+import { useDashboard, useFeedback, useOrders, useReports } from '../../hooks/queries.js';
+import { connectSocket, disconnectSocket } from '../../lib/socket.js';
 
 const NAV_SECTIONS = [
   {
@@ -31,6 +37,7 @@ const NAV_SECTIONS = [
     items: [
       { to: '/users', label: 'Users', icon: Users },
       { to: '/reports', label: 'Reports', icon: Flag, badge: 'reports' },
+      { to: '/feedback', label: 'User Feedback', icon: MessageSquareHeart, badge: 'feedback' },
     ],
   },
   {
@@ -38,11 +45,13 @@ const NAV_SECTIONS = [
     items: [
       { to: '/pricing', label: 'Pricing & coins', icon: BadgeIndianRupee },
       { to: '/payments', label: 'Payments', icon: CreditCard, badge: 'payments' },
+      { to: '/redeem-codes', label: 'Redeem Codes', icon: Gift },
     ],
   },
   {
     label: 'Outreach',
     items: [
+      { to: '/events', label: 'Events & Offers', icon: Calendar },
       { to: '/campaigns', label: 'Campaigns', icon: Megaphone },
       { to: '/banners', label: 'Banners', icon: GalleryHorizontalEnd },
     ],
@@ -66,8 +75,8 @@ function NavBadge({ count }) {
   );
 }
 
-function SidebarContent({ onNavigate, badges }) {
-  const { user, signOut } = useAuth();
+function SidebarContent({ onNavigate, badges, onSignOutClick }) {
+  const { user } = useAuth();
 
   return (
     <div className="flex h-full flex-col">
@@ -119,7 +128,7 @@ function SidebarContent({ onNavigate, badges }) {
           </div>
           <button
             type="button"
-            onClick={() => signOut()}
+            onClick={onSignOutClick}
             aria-label="Sign out"
             className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-ink-400 transition hover:bg-white/10 hover:text-white"
           >
@@ -132,25 +141,78 @@ function SidebarContent({ onNavigate, badges }) {
 }
 
 export function AppLayout() {
+  const { signOut } = useAuth();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isSignOutOpen, setIsSignOutOpen] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Counts of work waiting for an operator. These are the reason someone opens
-  // the panel at all, so they belong in the navigation rather than buried on
-  // their own pages.
+  // Real-time live counts of pending work for the operator
   const { data: dashboard } = useDashboard();
   const { data: pendingOrders } = useOrders({ status: 'awaiting_verification', limit: 1 });
   const { data: openReports } = useReports({ status: 'open', limit: 1 });
+  const { data: newFeedback } = useFeedback({ status: 'new', limit: 1 });
 
   const badges = {
     payments: pendingOrders?.meta?.total ?? dashboard?.revenue?.awaitingVerification ?? 0,
     reports: openReports?.meta?.total ?? 0,
+    feedback: newFeedback?.total ?? 0,
   };
+
+  // Live WebSocket sync across all admin panel sections
+  useEffect(() => {
+    const socket = connectSocket();
+    if (!socket) return undefined;
+
+    const onReportChange = () => {
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    };
+
+    const onFeedbackChange = () => {
+      queryClient.invalidateQueries({ queryKey: ['feedback'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    };
+
+    const onPaymentChange = () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    };
+
+    const onPresenceOrUserChange = () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    };
+
+    socket.on('admin:report:new', onReportChange);
+    socket.on('admin:report:updated', onReportChange);
+    socket.on('admin:feedback:new', onFeedbackChange);
+    socket.on('admin:feedback:updated', onFeedbackChange);
+    socket.on('admin:payment:new', onPaymentChange);
+    socket.on('admin:payment:updated', onPaymentChange);
+    socket.on('presence:updated', onPresenceOrUserChange);
+    socket.on('user:follow:updated', onPresenceOrUserChange);
+    socket.on('leaderboard:updated', onPresenceOrUserChange);
+
+    return () => {
+      socket.off('admin:report:new', onReportChange);
+      socket.off('admin:report:updated', onReportChange);
+      socket.off('admin:feedback:new', onFeedbackChange);
+      socket.off('admin:feedback:updated', onFeedbackChange);
+      socket.off('admin:payment:new', onPaymentChange);
+      socket.off('admin:payment:updated', onPaymentChange);
+      socket.off('presence:updated', onPresenceOrUserChange);
+      socket.off('user:follow:updated', onPresenceOrUserChange);
+      socket.off('leaderboard:updated', onPresenceOrUserChange);
+      disconnectSocket();
+    };
+  }, [queryClient]);
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[260px_1fr]">
       <aside className="hidden bg-ink-900 lg:block">
         <div className="sticky top-0 h-screen">
-          <SidebarContent badges={badges} />
+          <SidebarContent badges={badges} onSignOutClick={() => setIsSignOutOpen(true)} />
         </div>
       </aside>
 
@@ -162,7 +224,14 @@ export function AppLayout() {
             aria-hidden="true"
           />
           <div className="relative h-full w-[260px] bg-ink-900">
-            <SidebarContent badges={badges} onNavigate={() => setIsMobileNavOpen(false)} />
+            <SidebarContent
+              badges={badges}
+              onNavigate={() => setIsMobileNavOpen(false)}
+              onSignOutClick={() => {
+                setIsMobileNavOpen(false);
+                setIsSignOutOpen(true);
+              }}
+            />
           </div>
         </div>
       )}
@@ -184,6 +253,19 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <ConfirmDialog
+        isOpen={isSignOutOpen}
+        onClose={() => setIsSignOutOpen(false)}
+        onConfirm={() => {
+          setIsSignOutOpen(false);
+          signOut();
+        }}
+        title="Sign out of Admin Panel?"
+        message="Are you sure you want to sign out of the control centre?"
+        confirmLabel="Yes, Sign Out"
+        variant="danger"
+      />
     </div>
   );
 }
