@@ -2,7 +2,29 @@ import axios from 'axios';
 
 import { authStorage } from './auth-storage.js';
 
-const BASE_URL = `${import.meta.env.VITE_API_URL ?? ''}/api/v1`;
+export function getApiOrigin() {
+  const localUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const liveUrl = import.meta.env.VITE_API_URL_LIVE || import.meta.env.VITE_API_URL;
+
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    const hostname = window.location.hostname;
+    const isLocalHost =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.');
+
+    if (isLocalHost) {
+      return localUrl;
+    }
+
+    return liveUrl || localUrl;
+  }
+
+  return liveUrl || localUrl;
+}
+
+const BASE_URL = `${getApiOrigin().replace(/\/+$/, '')}/api/v1`;
 
 export const api = axios.create({ baseURL: BASE_URL, timeout: 20_000 });
 
@@ -49,6 +71,8 @@ function toApiError(error) {
 }
 
 api.interceptors.request.use((config) => {
+  const origin = getApiOrigin().replace(/\/+$/, '');
+  config.baseURL = `${origin}/api/v1`;
   const token = authStorage.getAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;

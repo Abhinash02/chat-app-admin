@@ -1,8 +1,13 @@
 import { io } from 'socket.io-client';
 
 import { authStorage } from './auth-storage.js';
+import { getApiOrigin } from './api.js';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || window.location.origin;
+export function getSocketOrigin() {
+  return getApiOrigin().replace(/\/+$/, '');
+}
+
+const SOCKET_URL = getSocketOrigin();
 
 let socket = null;
 
