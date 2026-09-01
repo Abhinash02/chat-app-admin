@@ -47,6 +47,9 @@ const RedeemCodesPage = lazy(() =>
 const BannersPage = lazy(() =>
   import('./pages/BannersPage.jsx').then((m) => ({ default: m.BannersPage })),
 );
+const SupportPage = lazy(() =>
+  import('./pages/SupportPage.jsx').then((m) => ({ default: m.SupportPage })),
+);
 
 function RequireAuth({ children }) {
   const { isAuthenticated, isRestoring } = useAuth();
@@ -101,6 +104,7 @@ export function App() {
           <Route path="banners" element={<BannersPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="feedback" element={<FeedbackPage />} />
+          <Route path="support" element={<SupportPage />} />
           <Route path="appearance" element={<AppearancePage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="audit-log" element={<AuditLogPage />} />

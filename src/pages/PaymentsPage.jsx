@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Check, CreditCard, Receipt, RotateCcw, X } from 'lucide-react';
+import { Check, CreditCard, Receipt, RotateCcw, Trash2, X } from 'lucide-react';
 
 import { Badge, StatusBadge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
@@ -11,14 +11,19 @@ import { Field, Input, Select } from '../components/ui/Field.jsx';
 import { PageHeader } from '../components/layout/AppLayout.jsx';
 import { Pagination, TCell, THead, TRow, Table } from '../components/ui/Table.jsx';
 import { formatNumber, formatPaise, formatRelative } from '../lib/format.js';
-import { useApproveOrder, useOrders, useRefundOrder, useRejectOrder } from '../hooks/queries.js';
+import {
+  useApproveOrder,
+  useDeleteOrder,
+  useOrders,
+  useRefundOrder,
+  useRejectOrder,
+} from '../hooks/queries.js';
 
 const COLUMNS = [
   { key: 'user', label: 'Buyer' },
   { key: 'pack', label: 'Pack' },
   { key: 'amount', label: 'Amount', align: 'right' },
   { key: 'method', label: 'Method', className: 'hidden lg:table-cell' },
-  { key: 'proof', label: 'UPI reference', className: 'hidden xl:table-cell' },
   { key: 'status', label: 'Status' },
   { key: 'when', label: 'Placed', align: 'right', className: 'hidden md:table-cell' },
   { key: 'actions', label: '', align: 'right' },
@@ -77,7 +82,7 @@ function RefundDialog({ isOpen, onClose, order }) {
         order
           ? `You are issuing a refund of ${formatPaise(order.amountInPaise)} for ${
               order.user?.nickname ?? 'the buyer'
-            }. This will automatically trigger payment reversal at the gateway and deduct ${formatNumber(
+            }. This will deduct ${formatNumber(
               order.totalCoins,
             )} coins from the customer's wallet.`
           : ''
@@ -88,7 +93,7 @@ function RefundDialog({ isOpen, onClose, order }) {
     >
       <div className="mt-3 space-y-3">
         <div className="rounded-xl border border-red-200 bg-red-50/60 p-3 text-xs text-red-700">
-          ⚠️ <strong>Instant Action:</strong> For Razorpay, funds are returned directly to the original bank/card. For Manual UPI, record your notes after reversing the transfer.
+          ⚠️ <strong>Instant Action:</strong> For Cashfree, funds are returned to the original bank/card. For Manual UPI, record your notes after reversing the transfer.
         </div>
         <Field label="Reason for Refund">
           <Input
@@ -113,11 +118,12 @@ export function PaymentsPage() {
 
   const { data, isLoading, error, refetch } = useOrders({
     page,
-    limit: 20,
+    limit: 10,
     ...(status ? { status } : {}),
   });
 
   const approve = useApproveOrder();
+  const deleteOrder = useDeleteOrder();
   const orders = data?.items ?? [];
 
   function updateStatus(value) {
@@ -132,7 +138,7 @@ export function PaymentsPage() {
     <>
       <PageHeader
         title="Payments"
-        description="Razorpay orders settle automatically. UPI transfers need you to confirm the money arrived before coins are credited."
+        description="Cashfree orders settle automatically. Review pending UPI transfers and manage transaction records."
       />
 
       <Card>
@@ -168,7 +174,7 @@ export function PaymentsPage() {
               <THead columns={COLUMNS} />
               <tbody>
                 {isLoading ? (
-                  <SkeletonRows rows={8} columns={COLUMNS.length} />
+                  <SkeletonRows rows={10} columns={COLUMNS.length} />
                 ) : orders.length === 0 ? (
                   <tr>
                     <td colSpan={COLUMNS.length}>
@@ -218,19 +224,13 @@ export function PaymentsPage() {
                         </TCell>
 
                         <TCell className="hidden lg:table-cell">
-                          <Badge tone={order.provider === 'manual_upi' ? 'warning' : 'info'}>
-                            {order.provider === 'manual_upi' ? 'UPI transfer' : 'Razorpay'}
+                          <Badge tone={order.provider === 'cashfree' ? 'info' : order.provider === 'manual_upi' ? 'warning' : 'neutral'}>
+                            {order.provider === 'cashfree'
+                              ? '⚡ Cashfree'
+                              : order.provider === 'manual_upi'
+                                ? 'UPI transfer'
+                                : order.provider}
                           </Badge>
-                        </TCell>
-
-                        <TCell className="hidden xl:table-cell">
-                          {order.manualProof?.utr ? (
-                            // Monospace so an operator can compare it character
-                            // by character against their bank statement.
-                            <span className="font-mono text-xs text-ink-700">{order.manualProof.utr}</span>
-                          ) : (
-                            <span className="text-xs text-ink-400">—</span>
-                          )}
                         </TCell>
 
                         <TCell>
@@ -252,40 +252,54 @@ export function PaymentsPage() {
                         </TCell>
 
                         <TCell align="right">
-                          {needsReview && (
-                            <div className="flex justify-end gap-1.5">
-                              <Button
-                                size="sm"
-                                variant="success"
-                                icon={Check}
-                                isLoading={approve.isPending && approve.variables === order.id}
-                                onClick={() => setDialog({ type: 'approve', order })}
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-red-600 hover:bg-red-50"
-                                aria-label="Reject payment"
-                                onClick={() => setDialog({ type: 'reject', order })}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
+                          <div className="flex justify-end gap-1.5">
+                            {needsReview && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="success"
+                                  icon={Check}
+                                  isLoading={approve.isPending && approve.variables === order.id}
+                                  onClick={() => setDialog({ type: 'approve', order })}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-red-600 hover:bg-red-50"
+                                  aria-label="Reject payment"
+                                  onClick={() => setDialog({ type: 'reject', order })}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
 
-                          {isPaid && (
+                            {isPaid && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                icon={RotateCcw}
+                                className="text-red-600 hover:border-red-300 hover:bg-red-50"
+                                onClick={() => setDialog({ type: 'refund', order })}
+                              >
+                                Refund
+                              </Button>
+                            )}
+
+                            {/* Delete button — always visible for admin cleanup */}
                             <Button
                               size="sm"
-                              variant="outline"
-                              icon={RotateCcw}
-                              className="text-red-600 hover:border-red-300 hover:bg-red-50"
-                              onClick={() => setDialog({ type: 'refund', order })}
+                              variant="ghost"
+                              className="text-red-400 hover:bg-red-50 hover:text-red-600"
+                              aria-label="Delete transaction"
+                              title="Delete transaction record"
+                              onClick={() => setDialog({ type: 'delete', order })}
                             >
-                              Refund
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                          )}
+                          </div>
                         </TCell>
                       </TRow>
                     );
@@ -299,6 +313,7 @@ export function PaymentsPage() {
         )}
       </Card>
 
+      {/* Approve dialog */}
       <ConfirmDialog
         isOpen={dialog?.type === 'approve'}
         onClose={() => setDialog(null)}
@@ -329,18 +344,41 @@ export function PaymentsPage() {
         )}
       </ConfirmDialog>
 
+      {/* Reject dialog */}
       {dialog?.type === 'reject' && (
         <RejectDialog isOpen onClose={() => setDialog(null)} order={dialog.order} />
       )}
 
+      {/* Refund dialog */}
       {dialog?.type === 'refund' && (
         <RefundDialog isOpen onClose={() => setDialog(null)} order={dialog.order} />
       )}
 
+      {/* Delete dialog */}
+      <ConfirmDialog
+        isOpen={dialog?.type === 'delete'}
+        onClose={() => setDialog(null)}
+        onConfirm={async () => {
+          await deleteOrder.mutateAsync(dialog.order.id);
+          setDialog(null);
+        }}
+        title="🗑️ Delete this transaction?"
+        message={
+          dialog?.order
+            ? `Permanently delete the ${dialog.order.packageName} order for ${
+                dialog.order.user?.nickname ?? 'this user'
+              } (${formatPaise(dialog.order.amountInPaise)})? This removes it from all records and cannot be undone.`
+            : ''
+        }
+        confirmLabel="Yes, delete permanently"
+        variant="danger"
+        isLoading={deleteOrder.isPending}
+      />
+
       {!isLoading && orders.length === 0 && status === '' && (
         <p className="mt-4 flex items-center justify-center gap-2 text-xs text-ink-500">
           <CreditCard className="h-3.5 w-3.5" aria-hidden="true" />
-          Configure your UPI ID and Razorpay keys in Settings to start taking payments.
+          Configure your Cashfree keys in Settings to start taking payments.
         </p>
       )}
     </>

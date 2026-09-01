@@ -24,6 +24,9 @@ export const queryKeys = {
   templates: ['email-templates'],
   banners: ['banners'],
   reach: ['delivery-reach'],
+  supportTickets: (params) => ['support-tickets', params],
+  supportTicket: (ticketId) => ['support-ticket', ticketId],
+  cannedResponses: ['canned-responses'],
 };
 
 // ----- Reads ---------------------------------------------------------------
@@ -300,6 +303,15 @@ export function useRefundOrder() {
   });
 }
 
+export function useDeleteOrder() {
+  return useApiMutation({
+    mutationFn: (orderId) =>
+      request({ method: 'DELETE', url: `/payments/admin/orders/${orderId}` }),
+    successMessage: 'Transaction deleted permanently',
+    invalidate: [['orders'], queryKeys.dashboard],
+  });
+}
+
 export function useReviewReport() {
   return useApiMutation({
     mutationFn: ({ reportId, status, reviewNote }) =>
@@ -548,3 +560,86 @@ export function useDeleteRedeemCode() {
     invalidate: [['redeem-codes']],
   });
 }
+
+// ----- Customer Support ---------------------------------------------------
+
+export function useSupportTickets(params) {
+  return useQuery({
+    queryKey: queryKeys.supportTickets(params),
+    queryFn: () => requestList({ method: 'GET', url: '/support/admin/tickets', params }),
+    placeholderData: (previous) => previous,
+    refetchInterval: 10_000,
+  });
+}
+
+export function useSupportTicketDetails(ticketId) {
+  return useQuery({
+    queryKey: queryKeys.supportTicket(ticketId),
+    queryFn: () => request({ method: 'GET', url: `/support/tickets/${ticketId}` }),
+    enabled: Boolean(ticketId),
+    refetchInterval: 5_000,
+  });
+}
+
+export function useSendSupportMessage() {
+  return useApiMutation({
+    mutationFn: ({ ticketId, message, attachments, isQuickReply }) =>
+      request({
+        method: 'POST',
+        url: `/support/tickets/${ticketId}/messages`,
+        data: { message, attachments, isQuickReply },
+      }),
+    successMessage: null,
+    invalidate: [['support-tickets'], ['support-ticket']],
+  });
+}
+
+export function useUpdateSupportStatus() {
+  return useApiMutation({
+    mutationFn: ({ ticketId, status }) =>
+      request({
+        method: 'PATCH',
+        url: `/support/admin/tickets/${ticketId}/status`,
+        data: { status },
+      }),
+    successMessage: 'Ticket status updated',
+    invalidate: [['support-tickets'], ['support-ticket']],
+  });
+}
+
+export function useDeleteSupportTicket() {
+  return useApiMutation({
+    mutationFn: (ticketId) =>
+      request({
+        method: 'DELETE',
+        url: `/support/admin/tickets/${ticketId}`,
+      }),
+    successMessage: 'Support ticket deleted',
+    invalidate: [['support-tickets'], ['support-ticket']],
+  });
+}
+
+export function useCannedResponses() {
+  return useQuery({
+    queryKey: queryKeys.cannedResponses,
+    queryFn: () => request({ method: 'GET', url: '/support/canned-responses' }),
+  });
+}
+
+export function useCreateCannedResponse() {
+  return useApiMutation({
+    mutationFn: (payload) =>
+      request({ method: 'POST', url: '/support/canned-responses', data: payload }),
+    successMessage: 'Quick reply template added',
+    invalidate: [queryKeys.cannedResponses],
+  });
+}
+
+export function useDeleteCannedResponse() {
+  return useApiMutation({
+    mutationFn: (id) => request({ method: 'DELETE', url: `/support/canned-responses/${id}` }),
+    successMessage: 'Template removed',
+    invalidate: [queryKeys.cannedResponses],
+  });
+}
+

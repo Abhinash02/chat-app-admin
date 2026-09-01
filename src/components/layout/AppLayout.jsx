@@ -8,6 +8,7 @@ import {
   Flag,
   GalleryHorizontalEnd,
   Gift,
+  Headset,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -24,7 +25,7 @@ import { Avatar } from '../ui/Avatar.jsx';
 import { Button } from '../ui/Button.jsx';
 import { ConfirmDialog } from '../ui/Modal.jsx';
 import { useAuth } from '../../hooks/auth-context.js';
-import { useDashboard, useFeedback, useOrders, useReports } from '../../hooks/queries.js';
+import { useDashboard, useFeedback, useOrders, useReports, useSupportTickets } from '../../hooks/queries.js';
 import { connectSocket, disconnectSocket } from '../../lib/socket.js';
 
 const NAV_SECTIONS = [
@@ -36,6 +37,7 @@ const NAV_SECTIONS = [
     label: 'People',
     items: [
       { to: '/users', label: 'Users', icon: Users },
+      { to: '/support', label: 'Customer Support', icon: Headset, badge: 'support' },
       { to: '/reports', label: 'Reports', icon: Flag, badge: 'reports' },
       { to: '/feedback', label: 'User Feedback', icon: MessageSquareHeart, badge: 'feedback' },
     ],
@@ -151,11 +153,13 @@ export function AppLayout() {
   const { data: pendingOrders } = useOrders({ status: 'awaiting_verification', limit: 1 });
   const { data: openReports } = useReports({ status: 'open', limit: 1 });
   const { data: newFeedback } = useFeedback({ status: 'new', limit: 1 });
+  const { data: supportData } = useSupportTickets();
 
   const badges = {
     payments: pendingOrders?.meta?.total ?? dashboard?.revenue?.awaitingVerification ?? 0,
     reports: openReports?.meta?.total ?? 0,
     feedback: newFeedback?.total ?? 0,
+    support: supportData?.meta?.unreadCount ?? 0,
   };
 
   // Live WebSocket sync across all admin panel sections

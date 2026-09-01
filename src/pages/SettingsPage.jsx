@@ -297,14 +297,17 @@ export function SettingsPage() {
         <SettingsSection
           icon={Gamepad2}
           title="Games"
-          description="Mini games and the leaderboard everyone can see."
+          description="Mini games, points to coins exchange rate, and leaderboards."
           group="games"
           settings={settings}
           transform={(draft) => ({
             enabled: draft.enabled,
             leaderboardSize: Number(draft.leaderboardSize),
             maxSessionsPerDay: Number(draft.maxSessionsPerDay),
-            coinsPerPointConversion: Number(draft.coinsPerPointConversion),
+            coinsPerPointConversion: Number(draft.coinsPerPointConversion ?? 0),
+            pointsPerCoin: Number(draft.pointsPerCoin ?? 100),
+            minPointsToConvert: Number(draft.minPointsToConvert ?? 100),
+            pointsConversionEnabled: draft.pointsConversionEnabled ?? true,
           })}
         >
           {({ draft, set }) => (
@@ -339,20 +342,45 @@ export function SettingsPage() {
                 </Field>
               </div>
 
-              <Field
-                label="Coins per point"
-                hint="Leave at 0 to keep points cosmetic. Anything above 0 turns games into a coin source — raise it carefully."
-              >
-                <NumberInput
-                  value={draft.coinsPerPointConversion}
-                  min={0}
-                  max={100}
-                  step={0.01}
-                  suffix="coins"
-                  onChange={(event) => set('coinsPerPointConversion', event.target.value)}
+              <div className="pt-2 border-t border-ink-100 dark:border-ink-800 space-y-4">
+                <Toggle
+                  checked={draft.pointsConversionEnabled ?? true}
+                  onChange={(value) => set('pointsConversionEnabled', value)}
+                  label="Allow Points to Coins Conversion"
+                  description="When enabled, users can convert their game points into spendable coins in the app."
                   disabled={!draft.enabled}
                 />
-              </Field>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field
+                    label="Points per 1 Coin (Exchange Rate)"
+                    hint={`e.g. 2,000 points = ${Math.floor(2000 / (Number(draft.pointsPerCoin) || 100))} coins`}
+                  >
+                    <NumberInput
+                      value={draft.pointsPerCoin ?? 100}
+                      min={1}
+                      max={100000}
+                      suffix="points = 1 coin"
+                      onChange={(event) => set('pointsPerCoin', event.target.value)}
+                      disabled={!draft.enabled || !(draft.pointsConversionEnabled ?? true)}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Minimum Points to Convert"
+                    hint="Minimum points a user must hold before converting."
+                  >
+                    <NumberInput
+                      value={draft.minPointsToConvert ?? 100}
+                      min={1}
+                      max={100000}
+                      suffix="pts minimum"
+                      onChange={(event) => set('minPointsToConvert', event.target.value)}
+                      disabled={!draft.enabled || !(draft.pointsConversionEnabled ?? true)}
+                    />
+                  </Field>
+                </div>
+              </div>
             </div>
           )}
         </SettingsSection>
