@@ -219,8 +219,20 @@ export function PaymentsPage() {
                           </span>
                         </TCell>
 
-                        <TCell align="right" className="font-medium text-ink-900">
-                          {formatPaise(order.amountInPaise)}
+                        <TCell align="right" className="font-medium">
+                          <span className={order.status === 'refunded' ? 'text-ink-500 line-through' : 'text-ink-900'}>
+                            {formatPaise(order.amountInPaise)}
+                          </span>
+                          {order.status === 'refunded' && (
+                            <span className="block text-[11px] font-bold text-emerald-600">
+                              ↩️ {formatPaise(order.amountInPaise)} Refunded
+                            </span>
+                          )}
+                          {order.status === 'failed' && (
+                            <span className="block text-[11px] font-medium text-amber-600">
+                              Auto-refund (2–24h)
+                            </span>
+                          )}
                         </TCell>
 
                         <TCell className="hidden lg:table-cell">
@@ -237,12 +249,17 @@ export function PaymentsPage() {
                           <StatusBadge status={order.status} />
                           {order.rejectionReason && (
                             <span className="block max-w-[14rem] truncate text-xs text-red-600">
-                              {order.rejectionReason}
+                              Rejection: {order.rejectionReason}
                             </span>
                           )}
                           {order.refundReason && (
-                            <span className="block max-w-[14rem] truncate text-xs font-medium text-purple-600">
-                              {order.refundReason}
+                            <span className="block max-w-[14rem] truncate text-xs font-semibold text-emerald-700">
+                              Reason: {order.refundReason}
+                            </span>
+                          )}
+                          {order.status === 'failed' && (
+                            <span className="block max-w-[14rem] text-[11px] text-amber-600">
+                              Banking auto-refund in 2–24h
                             </span>
                           )}
                         </TCell>
