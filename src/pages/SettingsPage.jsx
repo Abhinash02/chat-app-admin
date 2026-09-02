@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Gamepad2, MessageSquare, MapPin, Radio, Save, ShieldAlert, Smartphone, Wallet } from 'lucide-react';
+import { Coins, Gamepad2, MessageSquare, MapPin, Radio, Save, ShieldAlert, Smartphone, Wallet } from 'lucide-react';
 
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
@@ -498,6 +498,91 @@ export function SettingsPage() {
                   placeholder="A new version of Vibe is available with new features and performance improvements!"
                 />
               </Field>
+            </div>
+          )}
+        </SettingsSection>
+
+        <SettingsSection
+          icon={Coins}
+          title="Girls Chat Earnings & Payouts"
+          description="Configure message rewards for girls chatting with boys, 25 coins = ₹1 INR conversion rate, and Cashfree Payout rules."
+          group="earnings"
+          settings={settings}
+          transform={(draft) => ({
+            enabled: Boolean(draft?.enabled),
+            messagesPerReward: Number(draft?.messagesPerReward || 25),
+            rewardCoins: Number(draft?.rewardCoins || 1),
+            coinsPerRupee: Number(draft?.coinsPerRupee || 25),
+            minWithdrawalCoins: Number(draft?.minWithdrawalCoins || 25),
+            maxWithdrawalCoinsPerDay: Number(draft?.maxWithdrawalCoinsPerDay || 5000),
+            payoutProvider: draft?.payoutProvider || 'cashfree',
+          })}
+        >
+          {({ draft, set }) => (
+            <div className="space-y-4">
+              <Toggle
+                checked={draft?.enabled ?? true}
+                onChange={(value) => set('enabled', value)}
+                label="Enable Girls Chat-to-Earn System"
+                description="When enabled, female users earn coins by chatting with male users and can convert coins to real rupees."
+              />
+
+              <div className="rounded-xl border border-pink-200 bg-pink-50/60 p-3 text-xs text-pink-900">
+                💖 <strong>Current Rule:</strong> Girls chatting with boys get{' '}
+                <strong>{draft?.rewardCoins ?? 1} coin</strong> for every{' '}
+                <strong>{draft?.messagesPerReward ?? 25} messages</strong>. Girls can convert{' '}
+                <strong>{draft?.coinsPerRupee ?? 25} coins into ₹1.00 Rupee</strong> anytime!
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field
+                  label="Messages with Boys per Coin Reward"
+                  hint="e.g. 25 messages sent by girl to boys = 1 coin earned"
+                >
+                  <NumberInput
+                    value={draft?.messagesPerReward ?? 25}
+                    min={1}
+                    max={1000}
+                    onChange={(event) => set('messagesPerReward', event.target.value)}
+                  />
+                </Field>
+
+                <Field
+                  label="Coins Rewarded per Cycle"
+                  hint="Coins credited when message target is reached (default: 1 coin)"
+                >
+                  <NumberInput
+                    value={draft?.rewardCoins ?? 1}
+                    min={1}
+                    max={100}
+                    onChange={(event) => set('rewardCoins', event.target.value)}
+                  />
+                </Field>
+
+                <Field
+                  label="Coins Required for ₹1 Rupee (Conversion Rate)"
+                  hint="e.g. 25 coins = ₹1 INR (so 250 coins = ₹10.00)"
+                >
+                  <NumberInput
+                    value={draft?.coinsPerRupee ?? 25}
+                    min={1}
+                    max={10000}
+                    onChange={(event) => set('coinsPerRupee', event.target.value)}
+                  />
+                </Field>
+
+                <Field
+                  label="Minimum Coins to Withdraw"
+                  hint="Smallest coin balance allowed per withdrawal request (default: 25 coins = ₹1)"
+                >
+                  <NumberInput
+                    value={draft?.minWithdrawalCoins ?? 25}
+                    min={1}
+                    max={100000}
+                    onChange={(event) => set('minWithdrawalCoins', event.target.value)}
+                  />
+                </Field>
+              </div>
             </div>
           )}
         </SettingsSection>

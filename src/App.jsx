@@ -50,6 +50,12 @@ const BannersPage = lazy(() =>
 const SupportPage = lazy(() =>
   import('./pages/SupportPage.jsx').then((m) => ({ default: m.SupportPage })),
 );
+const WithdrawalsPage = lazy(() =>
+  import('./pages/WithdrawalsPage.jsx').then((m) => ({ default: m.WithdrawalsPage })),
+);
+const SystemLogsPage = lazy(() =>
+  import('./pages/SystemLogsPage.jsx').then((m) => ({ default: m.SystemLogsPage })),
+);
 
 function RequireAuth({ children }) {
   const { isAuthenticated, isRestoring } = useAuth();
@@ -98,6 +104,7 @@ export function App() {
           <Route path="users/:userId" element={<UserDetailPage />} />
           <Route path="pricing" element={<PricingPage />} />
           <Route path="payments" element={<PaymentsPage />} />
+          <Route path="withdrawals" element={<WithdrawalsPage />} />
           <Route path="redeem-codes" element={<RedeemCodesPage />} />
           <Route path="events" element={<EventsPage />} />
           <Route path="campaigns" element={<CampaignsPage />} />
@@ -107,6 +114,7 @@ export function App() {
           <Route path="support" element={<SupportPage />} />
           <Route path="appearance" element={<AppearancePage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="system-logs" element={<SystemLogsPage />} />
           <Route path="audit-log" element={<AuditLogPage />} />
         </Route>
       </Route>

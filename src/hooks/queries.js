@@ -27,6 +27,9 @@ export const queryKeys = {
   supportTickets: (params) => ['support-tickets', params],
   supportTicket: (ticketId) => ['support-ticket', ticketId],
   cannedResponses: ['canned-responses'],
+  withdrawals: (params) => ['withdrawals', params],
+  systemLogs: (params) => ['system-logs', params],
+  systemLogStats: ['system-log-stats'],
 };
 
 // ----- Reads ---------------------------------------------------------------
@@ -642,4 +645,89 @@ export function useDeleteCannedResponse() {
     invalidate: [queryKeys.cannedResponses],
   });
 }
+
+// ----- Withdrawals (Girls Chat Earnings & Cashfree Payouts) ------------------
+
+export function useWithdrawals(params) {
+  return useQuery({
+    queryKey: queryKeys.withdrawals(params),
+    queryFn: () => request({ method: 'GET', url: '/withdrawals/admin', params }),
+    placeholderData: (previous) => previous,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useApproveWithdrawal() {
+  return useApiMutation({
+    mutationFn: ({ withdrawalId, mode = 'cashfree', adminNotes, utr }) =>
+      request({
+        method: 'POST',
+        url: `/withdrawals/admin/${withdrawalId}/approve`,
+        data: { mode, adminNotes, utr },
+      }),
+    successMessage: 'Withdrawal approved & payout processed!',
+    invalidate: [['withdrawals'], ['dashboard']],
+  });
+}
+
+export function useRejectWithdrawal() {
+  return useApiMutation({
+    mutationFn: ({ withdrawalId, reason, adminNotes }) =>
+      request({
+        method: 'POST',
+        url: `/withdrawals/admin/${withdrawalId}/reject`,
+        data: { reason, adminNotes },
+      }),
+    successMessage: 'Withdrawal rejected and coins refunded to girl',
+    invalidate: [['withdrawals'], ['dashboard']],
+  });
+}
+
+// ----- Campaign Edit, Delete & In-App Broadcast ------------------------------
+
+export function useUpdateCampaign() {
+  return useApiMutation({
+    mutationFn: ({ campaignId, ...payload }) =>
+      request({ method: 'PATCH', url: `/notifications/campaigns/${campaignId}`, data: payload }),
+    successMessage: 'Campaign updated',
+    invalidate: [['campaigns'], ['campaign']],
+  });
+}
+
+export function useDeleteCampaign() {
+  return useApiMutation({
+    mutationFn: (campaignId) =>
+      request({ method: 'DELETE', url: `/notifications/campaigns/${campaignId}` }),
+    successMessage: 'Campaign deleted',
+    invalidate: [['campaigns']],
+  });
+}
+
+// ----- System Logs & Error Tracking ----------------------------------------
+
+export function useSystemLogs(params) {
+  return useQuery({
+    queryKey: queryKeys.systemLogs(params),
+    queryFn: () => requestList({ method: 'GET', url: '/system-logs', params }),
+    placeholderData: (previous) => previous,
+    refetchInterval: 10_000,
+  });
+}
+
+export function useSystemLogStats() {
+  return useQuery({
+    queryKey: queryKeys.systemLogStats,
+    queryFn: () => request({ method: 'GET', url: '/system-logs/stats' }),
+    refetchInterval: 10_000,
+  });
+}
+
+export function useClearSystemLogs() {
+  return useApiMutation({
+    mutationFn: (payload) => request({ method: 'DELETE', url: '/system-logs', data: payload }),
+    successMessage: 'System logs cleared',
+    invalidate: [['system-logs'], queryKeys.systemLogStats],
+  });
+}
+
 

@@ -28,7 +28,7 @@ const COLUMNS = [
   { key: 'actions', label: '', align: 'right' },
 ];
 
-function EventFormModal({ isOpen, onClose, initialData = null }) {
+function EventFormModal({ isOpen, onClose, onBroadcastStarted, initialData = null }) {
   const isEditing = Boolean(initialData);
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
@@ -62,15 +62,38 @@ function EventFormModal({ isOpen, onClose, initialData = null }) {
         rewardFreeMinutes: Number(form.rewardFreeMinutes) || 0,
         discountPercent: Number(form.discountPercent) || 0,
       });
+      onClose();
     } else {
-      await createEvent.mutateAsync({
-        ...form,
-        rewardCoins: Number(form.rewardCoins) || 0,
-        rewardFreeMinutes: Number(form.rewardFreeMinutes) || 0,
-        discountPercent: Number(form.discountPercent) || 0,
+      onClose();
+      onBroadcastStarted?.({
+        title: form.title,
+        status: 'sending',
+        pushSent: 0,
+        emailsSent: 0,
       });
+
+      try {
+        const res = await createEvent.mutateAsync({
+          ...form,
+          rewardCoins: Number(form.rewardCoins) || 0,
+          rewardFreeMinutes: Number(form.rewardFreeMinutes) || 0,
+          discountPercent: Number(form.discountPercent) || 0,
+        });
+
+        onBroadcastStarted?.({
+          title: form.title,
+          status: 'completed',
+          pushSent: res?.broadcast?.pushSent ?? 0,
+          emailsSent: res?.broadcast?.emailsSent ?? 0,
+        });
+      } catch (err) {
+        onBroadcastStarted?.({
+          title: form.title,
+          status: 'failed',
+          error: err?.message || 'Failed to broadcast event',
+        });
+      }
     }
-    onClose();
   }
 
   const isSaving = createEvent.isPending || updateEvent.isPending;
@@ -253,6 +276,7 @@ export function EventsPage() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [broadcastTarget, setBroadcastTarget] = useState(null);
+  const [broadcastProgress, setBroadcastProgress] = useState(null);
 
   const { data, isLoading, error, refetch } = useEvents({ page, limit: 10 });
   const deleteEvent = useDeleteEvent();
@@ -261,17 +285,105 @@ export function EventsPage() {
 
   const events = data?.items ?? [];
 
+  async function handleConfirmBroadcast() {
+    if (!broadcastTarget) return;
+    const target = broadcastTarget;
+    setBroadcastTarget(null);
+    setBroadcastProgress({
+      title: target.title,
+      status: 'sending',
+      pushSent: 0,
+      emailsSent: 0,
+    });
+
+    try {
+      const res = await broadcastEvent.mutateAsync({
+        eventId: target.id,
+        sendPush: true,
+        sendEmail: true,
+      });
+
+      setBroadcastProgress({
+        title: target.title,
+        status: 'completed',
+        pushSent: res?.pushSent ?? 0,
+        emailsSent: res?.emailsSent ?? 0,
+      });
+    } catch (err) {
+      setBroadcastProgress({
+        title: target.title,
+        status: 'failed',
+        error: err?.message || 'Broadcast failed',
+      });
+    }
+  }
+
   return (
     <>
       <PageHeader
         title="Events & Offers"
-        description="Post special offers, festival celebrations, free chat hours, and bonus coin drops with automated instant push and email delivery."
-        action={
-          <Button variant="brand" icon={Plus} onClick={() => setIsCreateOpen(true)}>
-            Post New Event
-          </Button>
-        }
-      />
+        subtitle="Post special offers, festival celebrations, free chat hours, and bonus coin drops with automated instant push and email delivery."
+      >
+        <Button variant="brand" icon={Plus} onClick={() => setIsCreateOpen(true)}>
+          Post New Event
+        </Button>
+      </PageHeader>
+
+      {/* Live Broadcast Progress Banner if Active */}
+      {broadcastProgress && (
+        <Card className="mb-6 border-brand-200 bg-brand-50/50 p-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-block h-2.5 w-2.5 rounded-full ${
+                    broadcastProgress.status === 'sending'
+                      ? 'animate-ping bg-brand-500'
+                      : broadcastProgress.status === 'completed'
+                      ? 'bg-emerald-500'
+                      : 'bg-red-500'
+                  }`}
+                />
+                <h4 className="text-sm font-bold text-ink-900">
+                  {broadcastProgress.status === 'sending'
+                    ? `📢 Dispatching Event: "${broadcastProgress.title}"...`
+                    : broadcastProgress.status === 'completed'
+                    ? `✓ Broadcast Complete: "${broadcastProgress.title}"`
+                    : `✕ Broadcast Failed: "${broadcastProgress.title}"`}
+                </h4>
+              </div>
+
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-md bg-white px-2 py-0.5 font-semibold text-emerald-700 shadow-xs">
+                  ✓ {broadcastProgress.pushSent ?? 0} Push Tokens Reached
+                </span>
+                <span className="rounded-md bg-white px-2 py-0.5 font-semibold text-indigo-700 shadow-xs">
+                  ✉️ {broadcastProgress.emailsSent ?? 0} Emails Dispatched
+                </span>
+                <span className="rounded-md bg-white px-2 py-0.5 font-semibold text-purple-700 shadow-xs">
+                  ⚡ Live In-App Announcement Broadcasted
+                </span>
+              </div>
+            </div>
+
+            {/* Progress Bar & Dismiss Button */}
+            <div className="flex items-center gap-3">
+              {broadcastProgress.status === 'sending' ? (
+                <div className="w-32">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-ink-200">
+                    <div className="h-full w-2/3 animate-pulse rounded-full bg-brand-500" />
+                  </div>
+                  <span className="text-[10px] text-ink-500">Processing live queue...</span>
+                </div>
+              ) : (
+                <Button size="xs" variant="secondary" onClick={() => setBroadcastProgress(null)}>
+                  Dismiss
+                </Button>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card>
         {error ? (
@@ -442,6 +554,7 @@ export function EventsPage() {
             setIsCreateOpen(false);
             setEditingEvent(null);
           }}
+          onBroadcastStarted={(progress) => setBroadcastProgress(progress)}
           initialData={editingEvent}
         />
       )}
@@ -465,14 +578,7 @@ export function EventsPage() {
       <ConfirmDialog
         isOpen={Boolean(broadcastTarget)}
         onClose={() => setBroadcastTarget(null)}
-        onConfirm={async () => {
-          await broadcastEvent.mutateAsync({
-            eventId: broadcastTarget.id,
-            sendPush: true,
-            sendEmail: true,
-          });
-          setBroadcastTarget(null);
-        }}
+        onConfirm={handleConfirmBroadcast}
         title="📢 Re-broadcast Event Alerts?"
         message={
           broadcastTarget

@@ -16,7 +16,11 @@ export function Table({ children, className = '' }) {
   );
 }
 
-export function THead({ columns }) {
+export function THead({ columns, children }) {
+  if (children) {
+    return <thead>{children}</thead>;
+  }
+  if (!Array.isArray(columns)) return null;
   return (
     <thead>
       <tr className="border-b border-ink-200 bg-ink-50/60">

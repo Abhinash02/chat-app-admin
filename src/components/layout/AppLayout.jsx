@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  AlertOctagon,
   BadgeIndianRupee,
+  Banknote,
   Calendar,
   CreditCard,
   Flag,
@@ -25,7 +27,7 @@ import { Avatar } from '../ui/Avatar.jsx';
 import { Button } from '../ui/Button.jsx';
 import { ConfirmDialog } from '../ui/Modal.jsx';
 import { useAuth } from '../../hooks/auth-context.js';
-import { useDashboard, useFeedback, useOrders, useReports, useSupportTickets } from '../../hooks/queries.js';
+import { useDashboard, useFeedback, useOrders, useReports, useSupportTickets, useSystemLogStats } from '../../hooks/queries.js';
 import { connectSocket, disconnectSocket } from '../../lib/socket.js';
 
 const NAV_SECTIONS = [
@@ -47,6 +49,7 @@ const NAV_SECTIONS = [
     items: [
       { to: '/pricing', label: 'Pricing & coins', icon: BadgeIndianRupee },
       { to: '/payments', label: 'Payments', icon: CreditCard, badge: 'payments' },
+      { to: '/withdrawals', label: 'Girls Withdrawals', icon: Banknote },
       { to: '/redeem-codes', label: 'Redeem Codes', icon: Gift },
     ],
   },
@@ -63,6 +66,7 @@ const NAV_SECTIONS = [
     items: [
       { to: '/appearance', label: 'Appearance', icon: Palette },
       { to: '/settings', label: 'Settings', icon: Settings },
+      { to: '/system-logs', label: 'System Logs & Errors', icon: AlertOctagon, badge: 'errors' },
       { to: '/audit-log', label: 'Audit log', icon: ScrollText },
     ],
   },
@@ -274,14 +278,21 @@ export function AppLayout() {
   );
 }
 
-export function PageHeader({ title, description, action }) {
+export function PageHeader({ title, description, subtitle, action, children }) {
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
         <h1 className="text-xl font-semibold tracking-tight text-ink-900 sm:text-2xl">{title}</h1>
-        {description && <p className="mt-1 max-w-2xl text-sm text-ink-500">{description}</p>}
+        {(subtitle || description) && (
+          <p className="mt-1 max-w-2xl text-sm text-ink-500">{subtitle || description}</p>
+        )}
       </div>
-      {action}
+      {(action || children) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {action}
+          {children}
+        </div>
+      )}
     </div>
   );
 }

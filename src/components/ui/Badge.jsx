@@ -49,6 +49,9 @@ const STATUS_TONES = {
   dismissed: 'neutral',
   live: 'success',
   closed: 'neutral',
+  processing: 'info',
+  approved: 'success',
+  success: 'success',
 };
 
 /** Renders any backend status enum consistently, wherever it appears. */

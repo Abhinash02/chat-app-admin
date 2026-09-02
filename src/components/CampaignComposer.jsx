@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Mail, Repeat, Send, TestTube2, Users } from 'lucide-react';
+import { Bell, Clock, Mail, Plus, Repeat, Send, TestTube2, Trash2, Users, X } from 'lucide-react';
 
 import { Button } from './ui/Button.jsx';
 import { Card, CardBody, CardHeader } from './ui/Card.jsx';
@@ -12,6 +12,7 @@ import {
   usePreviewAudience,
   useSendCampaign,
   useSendTestEmail,
+  useUpdateCampaign,
 } from '../hooks/queries.js';
 
 const AUDIENCE_PRESETS = [
@@ -39,11 +40,6 @@ function EmailPreview({ html, subject, preheader }) {
         <p className="truncate text-sm font-semibold text-ink-900">{subject || 'No subject yet'}</p>
         {preheader && <p className="truncate text-xs text-ink-500">{preheader}</p>}
       </div>
-      {/*
-        A sandboxed iframe, not dangerouslySetInnerHTML: campaign HTML is
-        authored to run inside a mail client, and dropping it into this document
-        would let its styles and any script escape into the admin panel.
-      */}
       <iframe
         title="Email preview"
         sandbox=""
@@ -73,31 +69,53 @@ function PushPreview({ title, body, appName = 'Vibe' }) {
   );
 }
 
-export function CampaignComposer({ onSent }) {
-  const [name, setName] = useState('');
-  const [channel, setChannel] = useState('push');
-  const [audience, setAudience] = useState({ preset: 'everyone', onlineOnly: false });
+export function CampaignComposer({ onSent, onCancel, initialCampaign = null }) {
+  const [name, setName] = useState(initialCampaign?.name || '');
+  const [channel, setChannel] = useState(initialCampaign?.channel || 'push');
+  const [audience, setAudience] = useState(initialCampaign?.audience || { preset: 'everyone', onlineOnly: false });
 
-  const [push, setPush] = useState({ title: '', body: '', deepLink: '', sound: 'default' });
-  const [email, setEmail] = useState({ subject: '', preheader: '', html: '', templateId: '' });
+  const [push, setPush] = useState(
+    initialCampaign?.push || { title: '', body: '', deepLink: '', sound: 'default' },
+  );
+  const [email, setEmail] = useState(
+    initialCampaign?.email || { subject: '', preheader: '', html: '', templateId: '' },
+  );
 
-  const [repeat, setRepeat] = useState({
-    rule: 'none',
-    hour: 9,
-    minute: 0,
-    weekday: 1,
-    // The audience's timezone, not the server's — "every day at 7pm" has to
-    // mean 7pm where the users are.
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata',
-    isEnabled: true,
+  const [repeat, setRepeat] = useState(() => {
+    if (initialCampaign?.repeat) {
+      const rep = initialCampaign.repeat;
+      const times =
+        Array.isArray(rep.times) && rep.times.length > 0
+          ? rep.times
+          : [{ hour: rep.hour ?? 9, minute: rep.minute ?? 0 }];
+      const weekdays =
+        Array.isArray(rep.weekdays) && rep.weekdays.length > 0
+          ? rep.weekdays
+          : [rep.weekday ?? 1];
+      return {
+        rule: rep.rule || 'none',
+        times,
+        weekdays,
+        timezone: rep.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata',
+        isEnabled: rep.isEnabled !== false,
+      };
+    }
+    return {
+      rule: 'none',
+      times: [{ hour: 8, minute: 0 }],
+      weekdays: [1],
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata',
+      isEnabled: true,
+    };
   });
 
-  const [draftCampaignId, setDraftCampaignId] = useState(null);
+  const [draftCampaignId, setDraftCampaignId] = useState(initialCampaign?._id || null);
   const [testEmail, setTestEmail] = useState('');
 
   const { data: templates } = useEmailTemplates();
   const previewAudience = usePreviewAudience();
   const createCampaign = useCreateCampaign();
+  const updateCampaign = useUpdateCampaign();
   const sendCampaign = useSendCampaign();
   const sendTest = useSendTestEmail();
 
@@ -134,7 +152,56 @@ export function CampaignComposer({ onSent }) {
     (!sendsPush || push.title.trim().length > 0) &&
     (!sendsEmail || (email.subject.trim().length > 0 && email.html.trim().length > 0));
 
+  function addTimeSlot() {
+    setRepeat((cur) => ({
+      ...cur,
+      times: [...(cur.times || []), { hour: 17, minute: 0 }],
+    }));
+  }
+
+  function removeTimeSlot(index) {
+    setRepeat((cur) => ({
+      ...cur,
+      times: cur.times.filter((_, i) => i !== index),
+    }));
+  }
+
+  function updateTimeSlot(index, hour, minute) {
+    setRepeat((cur) => {
+      const copy = [...(cur.times || [{ hour: 8, minute: 0 }])];
+      copy[index] = { hour, minute };
+      return { ...cur, times: copy };
+    });
+  }
+
+  function toggleWeekday(dayIndex) {
+    setRepeat((cur) => {
+      const days = cur.weekdays || [1];
+      const has = days.includes(dayIndex);
+      const next = has
+        ? days.length > 1
+          ? days.filter((d) => d !== dayIndex)
+          : days
+        : [...days, dayIndex].sort();
+      return { ...cur, weekdays: next, weekday: next[0] };
+    });
+  }
+
   async function handleSaveDraft() {
+    const formattedRepeat =
+      repeat.rule !== 'none'
+        ? {
+            rule: repeat.rule,
+            times: repeat.times,
+            hour: repeat.times[0]?.hour ?? 8,
+            minute: repeat.times[0]?.minute ?? 0,
+            weekdays: repeat.weekdays,
+            weekday: repeat.weekdays[0] ?? 1,
+            timezone: repeat.timezone,
+            isEnabled: repeat.isEnabled,
+          }
+        : undefined;
+
     const payload = {
       name: name.trim(),
       channel,
@@ -143,16 +210,22 @@ export function CampaignComposer({ onSent }) {
       ...(sendsEmail
         ? { email: { subject: email.subject, preheader: email.preheader, html: email.html } }
         : {}),
-      ...(repeat.rule !== 'none' ? { repeat } : {}),
+      ...(formattedRepeat ? { repeat: formattedRepeat } : {}),
     };
+
+    if (draftCampaignId) {
+      const updated = await updateCampaign.mutateAsync({ campaignId: draftCampaignId, ...payload });
+      onSent?.(updated);
+      return updated;
+    }
 
     const campaign = await createCampaign.mutateAsync(payload);
     setDraftCampaignId(campaign._id);
+    onSent?.(campaign);
     return campaign;
   }
 
   async function handleSend() {
-    // Save first if this has not been saved yet, so "send" is always one press.
     const campaignId = draftCampaignId ?? (await handleSaveDraft())._id;
     await sendCampaign.mutateAsync({ campaignId });
 
@@ -206,14 +279,14 @@ export function CampaignComposer({ onSent }) {
         <Card>
           <CardHeader
             title="When to send"
-            description="Send once now, or set it running on a schedule."
+            description="Send once now, or set it running on a schedule with multiple timings."
           />
           <CardBody className="space-y-4">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {[
                 { value: 'none', label: 'Send once', hint: 'Goes out when you press send.' },
-                { value: 'daily', label: 'Every day', hint: 'Same time, every day.' },
-                { value: 'weekly', label: 'Every week', hint: 'One chosen day each week.' },
+                { value: 'daily', label: 'Every day', hint: 'Configurable times (e.g. 8 AM & 5 PM).' },
+                { value: 'weekly', label: 'Weekly', hint: 'Selected days and times.' },
               ].map((option) => (
                 <button
                   key={option.value}
@@ -239,63 +312,106 @@ export function CampaignComposer({ onSent }) {
             </div>
 
             {repeat.rule !== 'none' && (
-              <div className="grid grid-cols-1 gap-4 border-t border-ink-200/70 pt-4 sm:grid-cols-3">
+              <div className="space-y-4 border-t border-ink-200/70 pt-4">
                 {repeat.rule === 'weekly' && (
-                  <Field label="Day">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-ink-700">
+                      Select Days of the Week
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: 'Sun', value: 0 },
+                        { label: 'Mon', value: 1 },
+                        { label: 'Tue', value: 2 },
+                        { label: 'Wed', value: 3 },
+                        { label: 'Thu', value: 4 },
+                        { label: 'Fri', value: 5 },
+                        { label: 'Sat', value: 6 },
+                      ].map((d) => {
+                        const selected = repeat.weekdays?.includes(d.value);
+                        return (
+                          <button
+                            key={d.value}
+                            type="button"
+                            onClick={() => toggleWeekday(d.value)}
+                            className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                              selected
+                                ? 'bg-brand-500 text-white shadow-sm'
+                                : 'bg-ink-100 text-ink-600 hover:bg-ink-200'
+                            }`}
+                          >
+                            {d.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Multiple Time Slots */}
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-xs font-semibold text-ink-700">
+                      Send Timings (Add morning, evening, or multiple slots)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={addTimeSlot}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-brand-600 hover:text-brand-700"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add Timing
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {repeat.times?.map((slot, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 rounded-xl border border-ink-200 bg-white p-2"
+                      >
+                        <Clock className="h-4 w-4 text-ink-400" />
+                        <input
+                          type="time"
+                          value={`${String(slot.hour).padStart(2, '0')}:${String(slot.minute).padStart(2, '0')}`}
+                          onChange={(e) => {
+                            const [h, m] = e.target.value.split(':').map(Number);
+                            updateTimeSlot(index, h, m);
+                          }}
+                          className="flex-1 rounded-lg border-0 bg-transparent text-xs font-bold text-ink-900 focus:outline-none"
+                        />
+                        {repeat.times.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeTimeSlot(index)}
+                            className="rounded p-1 text-ink-400 hover:text-red-600"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="max-w-xs">
+                  <Field label="Timezone" hint="The times above are local to this zone.">
                     <Select
-                      value={repeat.weekday}
+                      value={repeat.timezone}
                       onChange={(event) =>
-                        setRepeat((current) => ({ ...current, weekday: Number(event.target.value) }))
+                        setRepeat((current) => ({ ...current, timezone: event.target.value }))
                       }
                     >
-                      {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(
-                        (day, dayIndex) => (
-                          <option key={day} value={dayIndex}>
-                            {day}
+                      {['Asia/Kolkata', 'Asia/Dubai', 'Europe/London', 'America/New_York', 'UTC'].map(
+                        (zone) => (
+                          <option key={zone} value={zone}>
+                            {zone}
                           </option>
                         ),
                       )}
                     </Select>
                   </Field>
-                )}
-
-                <Field label="Time">
-                  <Input
-                    type="time"
-                    value={`${String(repeat.hour).padStart(2, '0')}:${String(repeat.minute).padStart(2, '0')}`}
-                    onChange={(event) => {
-                      const [hour, minute] = event.target.value.split(':').map(Number);
-                      setRepeat((current) => ({ ...current, hour, minute }));
-                    }}
-                  />
-                </Field>
-
-                <Field label="Timezone" hint="The time above is local to this zone.">
-                  <Select
-                    value={repeat.timezone}
-                    onChange={(event) =>
-                      setRepeat((current) => ({ ...current, timezone: event.target.value }))
-                    }
-                  >
-                    {['Asia/Kolkata', 'Asia/Dubai', 'Europe/London', 'America/New_York', 'UTC'].map(
-                      (zone) => (
-                        <option key={zone} value={zone}>
-                          {zone}
-                        </option>
-                      ),
-                    )}
-                  </Select>
-                </Field>
-
-                <p className="rounded-xl bg-ink-50 px-3.5 py-2.5 text-xs text-ink-600 sm:col-span-3">
-                  <Repeat className="mr-1.5 inline h-3.5 w-3.5 align-text-bottom" aria-hidden="true" />
-                  Runs {repeat.rule === 'daily' ? 'every day' : 'every week'} at{' '}
-                  <strong className="text-ink-900">
-                    {String(repeat.hour).padStart(2, '0')}:{String(repeat.minute).padStart(2, '0')}
-                  </strong>{' '}
-                  ({repeat.timezone}). The audience is recounted each time, so it always reaches
-                  whoever qualifies that day.
-                </p>
+                </div>
               </div>
             )}
           </CardBody>
@@ -334,84 +450,86 @@ export function CampaignComposer({ onSent }) {
                 <Select
                   value={audience.gender ?? ''}
                   onChange={(event) =>
-                    setAudience((current) => ({ ...current, gender: event.target.value || null }))
+                    setAudience((current) => ({
+                      ...current,
+                      gender: event.target.value ? event.target.value : null,
+                    }))
                   }
                 >
-                  <option value="">No extra limit</option>
-                  <option value="male">Boys</option>
-                  <option value="female">Girls</option>
+                  <option value="">All genders</option>
+                  <option value="male">Boys only</option>
+                  <option value="female">Girls only</option>
                 </Select>
               </Field>
 
-              <Field label="Coin balance at most" hint="Leave empty to ignore.">
-                <NumberInput
-                  value={audience.maxCoinBalance ?? ''}
-                  min={0}
-                  suffix="coins"
-                  onChange={(event) =>
-                    setAudience((current) => ({
-                      ...current,
-                      maxCoinBalance: event.target.value === '' ? null : Number(event.target.value),
-                    }))
+              <Field
+                label="Activity"
+                hint="Filter users who are currently connected or have been inactive."
+              >
+                <Select
+                  value={
+                    audience.onlineOnly
+                      ? 'online'
+                      : audience.inactiveForDays
+                        ? String(audience.inactiveForDays)
+                        : ''
                   }
-                />
+                  onChange={(event) => {
+                    const val = event.target.value;
+                    if (val === 'online') {
+                      setAudience((cur) => ({ ...cur, onlineOnly: true, inactiveForDays: null }));
+                    } else if (val) {
+                      setAudience((cur) => ({ ...cur, onlineOnly: false, inactiveForDays: Number(val) }));
+                    } else {
+                      setAudience((cur) => ({ ...cur, onlineOnly: false, inactiveForDays: null }));
+                    }
+                  }}
+                >
+                  <option value="">Any activity status</option>
+                  <option value="online">Online right now</option>
+                  <option value="7">Inactive for 7+ days</option>
+                  <option value="30">Inactive for 30+ days</option>
+                </Select>
               </Field>
             </div>
-
-            <Toggle
-              checked={audience.onlineOnly}
-              onChange={(value) => setAudience((current) => ({ ...current, onlineOnly: value }))}
-              label="Only people online right now"
-            />
           </CardBody>
         </Card>
 
         {sendsPush && (
           <Card>
-            <CardHeader title="Notification" description="Keep it short — phones truncate long text." />
+            <CardHeader
+              title="Push notification"
+              description="Keep it short. The body appears on lock screens and in notification centres."
+            />
             <CardBody className="space-y-4">
-              <Field label="Title" hint={`${push.title.length}/100`}>
+              <Field label="Title" hint="The bold first line. Max 100 characters.">
                 <Input
                   value={push.title}
                   onChange={(event) => setPush((current) => ({ ...current, title: event.target.value }))}
-                  placeholder="e.g. Double coins today"
+                  placeholder="e.g. Free coins waiting for you"
                   maxLength={100}
                 />
               </Field>
 
-              <Field label="Message" hint={`${push.body.length}/300`}>
+              <Field label="Message body">
                 <Textarea
-                  rows={2}
                   value={push.body}
                   onChange={(event) => setPush((current) => ({ ...current, body: event.target.value }))}
-                  placeholder="e.g. Every pack has 20% more coins until midnight."
+                  placeholder="e.g. Open Vibe tonight and get 50 bonus coins."
+                  rows={3}
                   maxLength={300}
                 />
               </Field>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Opens" hint="Which screen tapping it should open.">
-                  <Select
+                <Field label="Deep link" hint="Optional screen to open in app.">
+                  <Input
                     value={push.deepLink}
-                    onChange={(event) => setPush((current) => ({ ...current, deepLink: event.target.value }))}
-                  >
-                    <option value="">The home screen</option>
-                    <option value="coins">Buy coins</option>
-                    <option value="chats">Chats</option>
-                    <option value="rooms">Rooms</option>
-                    <option value="games">Games</option>
-                  </Select>
-                </Field>
-
-                <Field label="Sound">
-                  <Select
-                    value={push.sound}
-                    onChange={(event) => setPush((current) => ({ ...current, sound: event.target.value }))}
-                  >
-                    <option value="default">Default</option>
-                    <option value="message.wav">Message chime</option>
-                    <option value="coin.wav">Coin</option>
-                  </Select>
+                    onChange={(event) =>
+                      setPush((current) => ({ ...current, deepLink: event.target.value }))
+                    }
+                    placeholder="e.g. coins, settings"
+                  />
                 </Field>
               </div>
             </CardBody>
@@ -421,48 +539,48 @@ export function CampaignComposer({ onSent }) {
         {sendsEmail && (
           <Card>
             <CardHeader
-              title="Email"
-              description="Start from a template, then edit the HTML. The unsubscribe footer is added automatically."
+              title="Promotional email"
+              description="Choose a pre-made template or write your own custom body."
             />
             <CardBody className="space-y-4">
-              <Field label="Start from a template">
-                <Select value={email.templateId} onChange={(event) => applyTemplate(event.target.value)}>
-                  <option value="">Write from scratch</option>
-                  {templates?.map((template) => (
-                    <option key={template._id} value={template._id}>
-                      {template.name}
+              <Field label="Template">
+                <Select
+                  value={email.templateId ?? ''}
+                  onChange={(event) => applyTemplate(event.target.value)}
+                >
+                  <option value="">Custom email (no template)</option>
+                  {templates?.map((item) => (
+                    <option key={item._id} value={item._id}>
+                      {item.name}
                     </option>
                   ))}
                 </Select>
               </Field>
 
-              <Field label="Subject" hint="Supports {{name}}.">
+              <Field label="Subject line">
                 <Input
                   value={email.subject}
                   onChange={(event) => setEmail((current) => ({ ...current, subject: event.target.value }))}
-                  placeholder="e.g. More coins, same price"
+                  placeholder="e.g. Special offer for {{nickname}}"
                   maxLength={200}
                 />
               </Field>
 
-              <Field label="Preview line" hint="Shown after the subject in most inboxes.">
+              <Field label="Preheader (preview text)">
                 <Input
                   value={email.preheader}
                   onChange={(event) => setEmail((current) => ({ ...current, preheader: event.target.value }))}
+                  placeholder="e.g. Claim your weekend coins now"
                   maxLength={200}
                 />
               </Field>
 
-              <Field
-                label="Body (HTML)"
-                hint="Placeholders: {{name}}, {{nickname}}, {{coinBalance}}, {{appName}}. Use inline styles — email clients ignore stylesheets."
-              >
+              <Field label="HTML body">
                 <Textarea
-                  rows={10}
                   value={email.html}
                   onChange={(event) => setEmail((current) => ({ ...current, html: event.target.value }))}
-                  className="font-mono text-xs"
-                  placeholder="<p>Hi {{name}},</p>"
+                  placeholder="<p>Hi {{nickname}}, your balance is {{coinBalance}} coins!</p>"
+                  rows={8}
                 />
               </Field>
             </CardBody>
@@ -470,33 +588,31 @@ export function CampaignComposer({ onSent }) {
         )}
       </div>
 
-      <div className="space-y-5 xl:sticky xl:top-6 xl:self-start">
+      {/* Right Sidebar: Audience Summary, Preview & Actions */}
+      <div className="space-y-5">
         <Card>
-          <CardHeader title="Reach" />
+          <CardHeader title="Estimated Audience" />
           <CardBody className="space-y-3">
-            <div className="flex items-center gap-3 rounded-xl bg-ink-50 px-3.5 py-3">
-              <Users className="h-4 w-4 shrink-0 text-ink-400" aria-hidden="true" />
-              <span className="text-sm text-ink-600">People matched</span>
-              <span className="ml-auto text-sm font-semibold text-ink-900">
-                {previewAudience.isPending ? <Spinner className="h-4 w-4" /> : formatNumber(preview?.total ?? 0)}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-ink-500">Matching Accounts</span>
+              <span className="font-bold text-ink-900">
+                {previewAudience.isPending ? <Spinner size="sm" /> : formatNumber(preview?.total ?? 0)}
               </span>
             </div>
 
             {sendsPush && (
-              <div className="flex items-center gap-3 rounded-xl bg-ink-50 px-3.5 py-3">
-                <Bell className="h-4 w-4 shrink-0 text-ink-400" aria-hidden="true" />
-                <span className="text-sm text-ink-600">Devices reachable</span>
-                <span className="ml-auto text-sm font-semibold text-ink-900">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-ink-500">Active Push Tokens</span>
+                <span className="font-semibold text-emerald-600">
                   {formatNumber(preview?.reach?.pushDevices ?? 0)}
                 </span>
               </div>
             )}
 
             {sendsEmail && (
-              <div className="flex items-center gap-3 rounded-xl bg-ink-50 px-3.5 py-3">
-                <Mail className="h-4 w-4 shrink-0 text-ink-400" aria-hidden="true" />
-                <span className="text-sm text-ink-600">Opted in to email</span>
-                <span className="ml-auto text-sm font-semibold text-ink-900">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-ink-500">Email Reachable</span>
+                <span className="font-semibold text-indigo-600">
                   {formatNumber(preview?.reach?.emailOptedIn ?? 0)}
                 </span>
               </div>
@@ -546,9 +662,6 @@ export function CampaignComposer({ onSent }) {
                   Test
                 </Button>
               </div>
-              <p className="text-xs text-ink-500">
-                A test goes through exactly the same rendering as the real send.
-              </p>
             </CardBody>
           </Card>
         )}
@@ -560,28 +673,40 @@ export function CampaignComposer({ onSent }) {
               icon={Send}
               className="w-full"
               disabled={!isValid || !preview?.total}
-              isLoading={sendCampaign.isPending || createCampaign.isPending}
+              isLoading={sendCampaign.isPending || createCampaign.isPending || updateCampaign.isPending}
               onClick={handleSend}
             >
-              {repeat.rule === 'none'
-                ? `Send to ${formatNumber(preview?.total ?? 0)} people`
-                : `Start ${repeat.rule} schedule`}
+              {initialCampaign
+                ? 'Save & Send Now'
+                : repeat.rule === 'none'
+                  ? `Send to ${formatNumber(preview?.total ?? 0)} people`
+                  : `Start ${repeat.rule} schedule`}
             </Button>
 
             <Button
               variant="outline"
               className="w-full"
               disabled={!isValid}
-              isLoading={createCampaign.isPending}
+              isLoading={createCampaign.isPending || updateCampaign.isPending}
               onClick={handleSaveDraft}
             >
-              Save as draft
+              {initialCampaign ? 'Save Changes' : 'Save as draft'}
             </Button>
+
+            {onCancel && (
+              <Button
+                variant="secondary"
+                className="w-full text-red-600 hover:bg-red-50"
+                onClick={onCancel}
+              >
+                Cancel Edit
+              </Button>
+            )}
 
             <p className="text-center text-xs text-ink-500">
               {repeat.rule === 'none'
                 ? 'Sending starts immediately and cannot be undone once a message has left.'
-                : 'The first run happens at the next scheduled time. You can pause it from the list.'}
+                : 'The campaign will dispatch automatically at the configured time slots.'}
             </p>
           </CardBody>
         </Card>
