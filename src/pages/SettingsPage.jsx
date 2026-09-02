@@ -74,6 +74,7 @@ export function SettingsPage() {
       />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        {/* Chat Settings */}
         <SettingsSection
           icon={MessageSquare}
           title="Chat"
@@ -140,6 +141,7 @@ export function SettingsPage() {
           )}
         </SettingsSection>
 
+        {/* Payments Settings */}
         <SettingsSection
           icon={Wallet}
           title="Payments"
@@ -205,6 +207,7 @@ export function SettingsPage() {
           )}
         </SettingsSection>
 
+        {/* Discovery Settings */}
         <SettingsSection
           icon={MapPin}
           title="Discovery"
@@ -251,6 +254,7 @@ export function SettingsPage() {
           )}
         </SettingsSection>
 
+        {/* Rooms Settings */}
         <SettingsSection
           icon={Radio}
           title="Rooms"
@@ -294,6 +298,7 @@ export function SettingsPage() {
           )}
         </SettingsSection>
 
+        {/* Mini Games Settings */}
         <SettingsSection
           icon={Gamepad2}
           title="Games"
@@ -385,6 +390,7 @@ export function SettingsPage() {
           )}
         </SettingsSection>
 
+        {/* Moderation Settings */}
         <SettingsSection
           icon={ShieldAlert}
           title="Moderation"
@@ -431,6 +437,7 @@ export function SettingsPage() {
           )}
         </SettingsSection>
 
+        {/* App Version & Google Play */}
         <SettingsSection
           icon={Smartphone}
           title="App Version & Google Play"
@@ -502,18 +509,19 @@ export function SettingsPage() {
           )}
         </SettingsSection>
 
+        {/* Girls Chat Earnings & Payouts (Dynamic Admin Settings) */}
         <SettingsSection
           icon={Coins}
           title="Girls Chat Earnings & Payouts"
-          description="Configure message rewards for girls chatting with boys, 25 coins = ₹1 INR conversion rate, and Cashfree Payout rules."
+          description="Configure message rewards for girls chatting with boys, 1 coin = ₹1 INR conversion rate, and payout rules."
           group="earnings"
           settings={settings}
           transform={(draft) => ({
             enabled: Boolean(draft?.enabled),
             messagesPerReward: Number(draft?.messagesPerReward || 25),
             rewardCoins: Number(draft?.rewardCoins || 1),
-            coinsPerRupee: Number(draft?.coinsPerRupee || 25),
-            minWithdrawalCoins: Number(draft?.minWithdrawalCoins || 25),
+            coinsPerRupee: Number(draft?.coinsPerRupee || 1),
+            minWithdrawalCoins: Number(draft?.minWithdrawalCoins || 5),
             maxWithdrawalCoinsPerDay: Number(draft?.maxWithdrawalCoinsPerDay || 5000),
             payoutProvider: draft?.payoutProvider || 'cashfree',
           })}
@@ -528,16 +536,16 @@ export function SettingsPage() {
               />
 
               <div className="rounded-xl border border-pink-200 bg-pink-50/60 p-3 text-xs text-pink-900">
-                💖 <strong>Current Rule:</strong> Girls chatting with boys get{' '}
+                💖 <strong>Current Dynamic Rule:</strong> Girls chatting with boys get{' '}
                 <strong>{draft?.rewardCoins ?? 1} coin</strong> for every{' '}
                 <strong>{draft?.messagesPerReward ?? 25} messages</strong>. Girls can convert{' '}
-                <strong>{draft?.coinsPerRupee ?? 25} coins into ₹1.00 Rupee</strong> anytime!
+                <strong>{draft?.coinsPerRupee ?? 1} coin into ₹1.00 Rupee (1:1 INR Cash)</strong> anytime!
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field
                   label="Messages with Boys per Coin Reward"
-                  hint="e.g. 25 messages sent by girl to boys = 1 coin earned"
+                  hint="e.g. 25 messages (or 23, 20, 15) sent by girl to boys = 1 coin earned"
                 >
                   <NumberInput
                     value={draft?.messagesPerReward ?? 25}
@@ -561,10 +569,10 @@ export function SettingsPage() {
 
                 <Field
                   label="Coins Required for ₹1 Rupee (Conversion Rate)"
-                  hint="e.g. 25 coins = ₹1 INR (so 250 coins = ₹10.00)"
+                  hint="e.g. 1 coin = ₹1 INR (so 10 coins = ₹10.00, 50 coins = ₹50.00)"
                 >
                   <NumberInput
-                    value={draft?.coinsPerRupee ?? 25}
+                    value={draft?.coinsPerRupee ?? 1}
                     min={1}
                     max={10000}
                     onChange={(event) => set('coinsPerRupee', event.target.value)}
@@ -572,13 +580,13 @@ export function SettingsPage() {
                 </Field>
 
                 <Field
-                  label="Minimum Coins to Withdraw"
-                  hint="Smallest coin balance allowed per withdrawal request (default: 25 coins = ₹1)"
+                  label="Minimum Withdrawal Limit (Coins)"
+                  hint="e.g. 5 coins (₹5.00) minimum required to request payout"
                 >
                   <NumberInput
-                    value={draft?.minWithdrawalCoins ?? 25}
+                    value={draft?.minWithdrawalCoins ?? 5}
                     min={1}
-                    max={100000}
+                    max={10000}
                     onChange={(event) => set('minWithdrawalCoins', event.target.value)}
                   />
                 </Field>

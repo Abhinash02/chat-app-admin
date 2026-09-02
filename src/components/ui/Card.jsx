@@ -1,4 +1,4 @@
-export function Card({ className = '', children, ...props }) {
+export function Card({ className = '', noPadding = false, children, ...props }) {
   return (
     <div className={`card ${className}`} {...props}>
       {children}

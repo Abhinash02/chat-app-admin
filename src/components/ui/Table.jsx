@@ -51,7 +51,18 @@ export function TRow({ onClick, children, className = '' }) {
   );
 }
 
-export function TCell({ align, className = '', children, ...props }) {
+export function TCell({ isHeader, align, className = '', children, ...props }) {
+  if (isHeader) {
+    return (
+      <th
+        scope="col"
+        className={`px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500 sm:px-4 ${align === 'right' ? 'text-right' : ''} ${className}`}
+        {...props}
+      >
+        {children}
+      </th>
+    );
+  }
   return (
     <td
       className={`px-3 py-3.5 align-middle text-ink-700 sm:px-4

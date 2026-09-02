@@ -320,12 +320,11 @@ export function SystemLogsPage() {
 
                     <TCell className="max-w-md">
                       <p
-                        className={`text-xs ${
+                        className={`text-xs line-clamp-2 ${
                           log.level === 'error'
                             ? 'font-medium text-red-700'
                             : 'text-ink-800'
                         }`}
-                        numberOfLines={2}
                       >
                         {log.message}
                       </p>

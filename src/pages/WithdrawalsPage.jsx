@@ -37,7 +37,7 @@ const STATUS_TABS = [
 ];
 
 function ApproveModal({ isOpen, onClose, item }) {
-  const [mode, setMode] = useState('cashfree');
+  const [mode, setMode] = useState('manual');
   const [utr, setUtr] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const approve = useApproveWithdrawal();
@@ -45,13 +45,22 @@ function ApproveModal({ isOpen, onClose, item }) {
   if (!item) return null;
 
   async function handleApprove() {
-    await approve.mutateAsync({
-      withdrawalId: item._id,
-      mode,
-      utr: utr.trim() || undefined,
-      adminNotes: adminNotes.trim() || undefined,
-    });
-    onClose();
+    try {
+      await approve.mutateAsync({
+        withdrawalId: item._id,
+        mode,
+        utr: utr.trim() || undefined,
+        adminNotes: adminNotes.trim() || undefined,
+      });
+      toast.success('Payout approved and marked as transferred!');
+      onClose();
+    } catch (err) {
+      toast.error(err?.message || 'Failed to approve withdrawal');
+      if (mode === 'cashfree') {
+        toast.info('Switched to Direct/Manual Transfer mode. Click Approve to proceed directly.');
+        setMode('manual');
+      }
+    }
   }
 
   const isUpi = item.payoutMethod === 'upi';
@@ -414,9 +423,22 @@ export function WithdrawalsPage() {
       {/* Main Table */}
       <Card noPadding>
         {isLoading ? (
-          <div className="p-6">
-            <SkeletonRows rows={6} />
-          </div>
+          <Table>
+            <THead>
+              <TRow>
+                <TCell isHeader>Girl / User</TCell>
+                <TCell isHeader>Coins & Conversion</TCell>
+                <TCell isHeader>Amount (INR)</TCell>
+                <TCell isHeader>Payout Account</TCell>
+                <TCell isHeader>Status</TCell>
+                <TCell isHeader>Requested</TCell>
+                <TCell isHeader className="text-right">Actions</TCell>
+              </TRow>
+            </THead>
+            <tbody>
+              <SkeletonRows rows={6} columns={7} />
+            </tbody>
+          </Table>
         ) : isError ? (
           <div className="p-8">
             <ErrorState message={error?.message || 'Failed to load withdrawal requests'} onRetry={refetch} />
