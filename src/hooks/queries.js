@@ -468,6 +468,27 @@ export function useDeleteBanner() {
   });
 }
 
+export function useBannerClicks(bannerId) {
+  return useQuery({
+    queryKey: ['bannerClicks', bannerId],
+    queryFn: () => request({ method: 'GET', url: `/banners/admin/${bannerId}/clicks` }),
+    enabled: Boolean(bannerId),
+  });
+}
+
+export function useSendBannerPush() {
+  return useApiMutation({
+    mutationFn: ({ bannerId, title, body, targetAudience }) =>
+      request({
+        method: 'POST',
+        url: `/banners/admin/${bannerId}/push`,
+        data: { title, body, targetAudience },
+      }),
+    successMessage: (res) =>
+      `Push notification sent to ${res?.sent ?? 0} active device(s) (${res?.targetedUsers ?? 0} targeted users)!`,
+  });
+}
+
 // ----- Scheduling ----------------------------------------------------------
 
 export function useScheduleTheme() {
