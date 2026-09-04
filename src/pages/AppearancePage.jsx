@@ -19,35 +19,58 @@ import {
 } from '../hooks/queries.js';
 
 /**
- * Colours are grouped by the job they do rather than listed alphabetically:
- * an operator changing "the pink" needs to find every token that carries the
- * brand, not hunt through 24 fields in dictionary order.
+ * Complete, granular color options grouped logically for full control over every visual element.
  */
 const COLOR_GROUPS = [
   {
-    label: 'Brand',
-    hint: 'The main identity colours, used for buttons, sent messages and highlights.',
+    label: 'Brand & Core Identity',
+    hint: 'Primary brand colors used for main buttons, interactive highlights, active badges, and accents.',
     keys: ['primary', 'primaryDark', 'primaryLight', 'onPrimary', 'secondary', 'accent'],
   },
   {
-    label: 'Surfaces',
-    hint: 'Page and card backgrounds, and the lines between them.',
-    keys: ['background', 'surface', 'surfaceAlt', 'border'],
+    label: 'Signature Header Gradients',
+    hint: 'Start and end gradient hues applied to top navigation bars and hero headers.',
+    keys: ['gradientStart', 'gradientEnd'],
   },
   {
-    label: 'Text',
-    hint: 'Check these against your surfaces in the preview.',
+    label: 'Surfaces, Cards & Layout',
+    hint: 'Page background, card tiles, sheet containers, secondary surfaces, and borders.',
+    keys: ['background', 'surface', 'surfaceAlt', 'cardBackground', 'border'],
+  },
+  {
+    label: 'Typography & Text Hierarchy',
+    hint: 'Headlines, primary readable text, secondary body, and muted timestamps.',
     keys: ['textPrimary', 'textSecondary', 'textMuted'],
   },
   {
-    label: 'Status',
-    hint: 'Success, warning and error states.',
-    keys: ['success', 'warning', 'danger', 'info'],
+    label: 'Chat Bubbles & Messaging',
+    hint: 'Direct styling for sent and received chat message bubbles and text.',
+    keys: ['chatBubbleOutgoing', 'chatBubbleOutgoingText', 'chatBubbleIncoming', 'chatBubbleIncomingText'],
   },
   {
-    label: 'Accents',
-    hint: 'Header gradient, gender tints, presence dots and the coin colour.',
-    keys: ['gradientStart', 'gradientEnd', 'maleAccent', 'femaleAccent', 'onlineDot', 'offlineDot', 'coinGold'],
+    label: 'Inputs & Form Controls',
+    hint: 'Chat composer input, search fields, dialog forms, and input borders.',
+    keys: ['inputBackground', 'inputBorder'],
+  },
+  {
+    label: 'Bottom Navigation Bar',
+    hint: 'Bottom navigation tab strip background, active icon tint, and inactive item colors.',
+    keys: ['tabBarBackground', 'tabBarActive', 'tabBarInactive'],
+  },
+  {
+    label: 'Social, Gender & Presence',
+    hint: 'Gender badges (male / female accents) and live online / offline status dots.',
+    keys: ['maleAccent', 'femaleAccent', 'onlineDot', 'offlineDot'],
+  },
+  {
+    label: 'Coins, Economy & Badges',
+    hint: 'Gleaming gold accents for coin counter, store items, VIP highlights, and free chat badge.',
+    keys: ['coinGold', 'vipGold', 'freeTalkBadge'],
+  },
+  {
+    label: 'System Status & Alerts',
+    hint: 'Feedback colors for positive success, balance warnings, critical errors, and notices.',
+    keys: ['success', 'warning', 'danger', 'info'],
   },
 ];
 
@@ -69,8 +92,6 @@ function CreateThemeDialog({ isOpen, onClose, baseTheme }) {
     await create.mutateAsync({
       name: name.trim(),
       slug,
-      // Starting from the theme on screen beats starting from nothing: most
-      // custom themes are a tweak of an existing one.
       colors: baseTheme?.colors,
       branding: baseTheme?.branding,
       isDark: baseTheme?.isDark ?? false,
@@ -84,7 +105,7 @@ function CreateThemeDialog({ isOpen, onClose, baseTheme }) {
       isOpen={isOpen}
       onClose={onClose}
       title="New theme"
-      description={baseTheme ? `Starts as a copy of ${baseTheme.name}.` : undefined}
+      description={baseTheme ? `Starts as a copy of ${baseTheme.name || baseTheme.slug}.` : undefined}
       size="sm"
       footer={
         <>
@@ -101,7 +122,7 @@ function CreateThemeDialog({ isOpen, onClose, baseTheme }) {
         <Input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="e.g. Diwali Special"
+          placeholder="e.g. Amber Luxury or Neon Pulse"
           maxLength={60}
           autoFocus
         />
@@ -111,7 +132,7 @@ function CreateThemeDialog({ isOpen, onClose, baseTheme }) {
 }
 
 export function AppearancePage() {
-  const { data: themes, isLoading, error, refetch } = useThemes();
+  const { data: themes = [], isLoading, error, refetch } = useThemes();
 
   const [selectedId, setSelectedId] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -127,10 +148,6 @@ export function AppearancePage() {
     [themes, selectedId],
   );
 
-  // Reset the working copy whenever a different theme is opened, so edits to one
-  // theme never leak into another. Done during render rather than in an effect:
-  // an effect would paint one frame of the previous theme's colours into the
-  // editor and preview before correcting itself.
   if (selected && draftThemeId !== selected._id) {
     setDraftThemeId(selected._id);
     setDraft({ colors: { ...selected.colors }, branding: { ...selected.branding } });
@@ -173,9 +190,11 @@ export function AppearancePage() {
         }
       />
 
+      {/* Theme Cards Grid */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {themes.map((theme) => {
           const isSelected = selected?._id === theme._id;
+          const themeTitle = theme.name || theme.slug ? humanise(theme.name || theme.slug) : 'Theme';
 
           return (
             <Card
@@ -190,23 +209,26 @@ export function AppearancePage() {
                 className="w-full p-4 text-left"
               >
                 <div className="mb-3 flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink-900">
-                    {theme.name}
+                  <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink-900">
+                    {themeTitle}
                   </span>
                   {theme.isActive && (
                     <Badge tone="success">
-                      <Check className="h-3 w-3" aria-hidden="true" />
+                      <Check className="h-3 w-3 mr-0.5" aria-hidden="true" />
                       Live
                     </Badge>
                   )}
                   {theme.scheduledFrom && !theme.isActive && (
                     <Badge tone="warning">
-                      <CalendarClock className="h-3 w-3" aria-hidden="true" />
+                      <CalendarClock className="h-3 w-3 mr-0.5" aria-hidden="true" />
                       Booked
                     </Badge>
                   )}
                   {theme.isPreset && !theme.isActive && !theme.scheduledFrom && (
                     <Badge tone="neutral">Built in</Badge>
+                  )}
+                  {!theme.isPreset && !theme.isActive && !theme.scheduledFrom && (
+                    <Badge tone="brand">Custom</Badge>
                   )}
                 </div>
 
@@ -219,7 +241,7 @@ export function AppearancePage() {
 
               <div className="flex items-center gap-2 border-t border-ink-200/70 px-4 py-2.5">
                 {theme.isActive ? (
-                  <span className="text-xs font-medium text-emerald-600">Currently live</span>
+                  <span className="text-xs font-semibold text-emerald-600">Currently live</span>
                 ) : (
                   <Button
                     size="sm"
@@ -236,7 +258,7 @@ export function AppearancePage() {
                   size="sm"
                   variant="ghost"
                   className="ml-auto"
-                  aria-label={`Schedule ${theme.name}`}
+                  aria-label={`Schedule ${themeTitle}`}
                   title="Schedule"
                   onClick={() => setDialog({ type: 'schedule', theme })}
                 >
@@ -248,7 +270,7 @@ export function AppearancePage() {
                     size="sm"
                     variant="ghost"
                     className="text-red-600 hover:bg-red-50"
-                    aria-label={`Delete ${theme.name}`}
+                    aria-label={`Delete ${themeTitle}`}
                     onClick={() => setDialog({ type: 'delete', theme })}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -264,7 +286,7 @@ export function AppearancePage() {
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
           <Card>
             <CardHeader
-              title={`Editing “${selected.name}”`}
+              title={`Editing “${selected.name || selected.slug}”`}
               description={
                 selected.isPreset
                   ? 'Built-in themes can be edited. Duplicate one first if you want to keep the original.'
@@ -296,27 +318,28 @@ export function AppearancePage() {
             />
 
             <CardBody className="space-y-7">
+              {/* Branding Section */}
               <section>
-                <h3 className="text-sm font-semibold text-ink-900">Branding</h3>
-                <p className="mb-3 text-xs text-ink-500">Name and shape, shown throughout the app.</p>
+                <h3 className="text-sm font-semibold text-ink-900">Branding & Geometry</h3>
+                <p className="mb-3 text-xs text-ink-500">Name, slogan, and curvature shape shown throughout the app.</p>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field label="App name">
                     <Input
-                      value={draft.branding.appName ?? ''}
+                      value={draft.branding?.appName ?? ''}
                       onChange={(event) => setBranding('appName', event.target.value)}
                       maxLength={40}
                     />
                   </Field>
                   <Field label="Tagline">
                     <Input
-                      value={draft.branding.tagline ?? ''}
+                      value={draft.branding?.tagline ?? ''}
                       onChange={(event) => setBranding('tagline', event.target.value)}
                       maxLength={120}
                     />
                   </Field>
                   <Field label="Corner radius" hint="How rounded cards and buttons look.">
                     <NumberInput
-                      value={draft.branding.borderRadius ?? 18}
+                      value={draft.branding?.borderRadius ?? 18}
                       min={0}
                       max={40}
                       onChange={(event) => setBranding('borderRadius', Number(event.target.value))}
@@ -325,7 +348,7 @@ export function AppearancePage() {
                   </Field>
                   <Field label="Font family">
                     <Input
-                      value={draft.branding.fontFamily ?? ''}
+                      value={draft.branding?.fontFamily ?? ''}
                       onChange={(event) => setBranding('fontFamily', event.target.value)}
                       maxLength={60}
                     />
@@ -333,6 +356,7 @@ export function AppearancePage() {
                 </div>
               </section>
 
+              {/* Comprehensive Color Groups */}
               {COLOR_GROUPS.map((group) => (
                 <section key={group.label}>
                   <h3 className="text-sm font-semibold text-ink-900">{group.label}</h3>
@@ -340,13 +364,13 @@ export function AppearancePage() {
                   <div className="grid grid-cols-1 gap-x-5 gap-y-3 sm:grid-cols-2">
                     {group.keys.map((key) => (
                       <div key={key}>
-                        <label htmlFor={`color-${key}`} className="mb-1 block text-xs font-medium text-ink-600">
+                        <label htmlFor={`color-${key}`} className="mb-1 block text-xs font-medium text-ink-700">
                           {humanise(key)}
                         </label>
                         <ColorInput
                           id={`color-${key}`}
                           label={humanise(key)}
-                          value={draft.colors[key]}
+                          value={draft.colors[key] || '#000000'}
                           onChange={(value) => setColor(key, value)}
                         />
                       </div>
@@ -363,12 +387,12 @@ export function AppearancePage() {
                 title="Live preview"
                 description="How the chat screen looks with these colours."
               />
-              <CardBody className="bg-ink-100/60">
+              <CardBody className="bg-ink-100/60 p-4">
                 <ThemePreview colors={draft.colors} branding={draft.branding} />
               </CardBody>
               {hasUnsavedChanges && (
                 <div className="border-t border-ink-200/70 bg-amber-50 px-5 py-3">
-                  <p className="text-xs text-amber-800">
+                  <p className="text-xs font-medium text-amber-800">
                     Unsaved changes — the app is still showing the saved version.
                   </p>
                 </div>
@@ -399,7 +423,7 @@ export function AppearancePage() {
           await remove.mutateAsync(dialog.theme._id);
           setDialog(null);
         }}
-        title={`Delete “${dialog?.theme?.name}”?`}
+        title={`Delete “${dialog?.theme?.name || dialog?.theme?.slug}”?`}
         message="This cannot be undone. The theme will be removed permanently."
         confirmLabel="Delete theme"
         isLoading={remove.isPending}

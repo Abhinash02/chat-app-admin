@@ -5,6 +5,7 @@ import {
   AlertOctagon,
   BadgeIndianRupee,
   Banknote,
+  Bell,
   Calendar,
   CreditCard,
   Flag,
@@ -51,11 +52,13 @@ const NAV_SECTIONS = [
       { to: '/payments', label: 'Payments', icon: CreditCard, badge: 'payments' },
       { to: '/withdrawals', label: 'Girls Withdrawals', icon: Banknote },
       { to: '/redeem-codes', label: 'Redeem Codes', icon: Gift },
+      { to: '/referrals', label: 'Refer & Earn', icon: Gift },
     ],
   },
   {
     label: 'Outreach',
     items: [
+      { to: '/notifications', label: 'Broadcast Notifications', icon: Bell },
       { to: '/events', label: 'Events & Offers', icon: Calendar },
       { to: '/campaigns', label: 'Campaigns', icon: Megaphone },
       { to: '/banners', label: 'Banners', icon: GalleryHorizontalEnd },

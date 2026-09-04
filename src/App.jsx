@@ -56,6 +56,10 @@ const WithdrawalsPage = lazy(() =>
 const SystemLogsPage = lazy(() =>
   import('./pages/SystemLogsPage.jsx').then((m) => ({ default: m.SystemLogsPage })),
 );
+const ReferralsPage = lazy(() =>
+  import('./pages/ReferralsPage.jsx').then((m) => ({ default: m.ReferralsPage })),
+);
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'));
 
 function RequireAuth({ children }) {
   const { isAuthenticated, isRestoring } = useAuth();
@@ -106,6 +110,7 @@ export function App() {
           <Route path="payments" element={<PaymentsPage />} />
           <Route path="withdrawals" element={<WithdrawalsPage />} />
           <Route path="redeem-codes" element={<RedeemCodesPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
           <Route path="events" element={<EventsPage />} />
           <Route path="campaigns" element={<CampaignsPage />} />
           <Route path="banners" element={<BannersPage />} />
@@ -116,6 +121,7 @@ export function App() {
           <Route path="settings" element={<SettingsPage />} />
           <Route path="system-logs" element={<SystemLogsPage />} />
           <Route path="audit-log" element={<AuditLogPage />} />
+          <Route path="referrals" element={<ReferralsPage />} />
         </Route>
       </Route>
 

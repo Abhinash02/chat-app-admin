@@ -30,6 +30,7 @@ export const queryKeys = {
   withdrawals: (params) => ['withdrawals', params],
   systemLogs: (params) => ['system-logs', params],
   systemLogStats: ['system-log-stats'],
+  inAppNotifications: (params) => ['in-app-notifications', params],
 };
 
 // ----- Reads ---------------------------------------------------------------
@@ -749,6 +750,45 @@ export function useClearSystemLogs() {
     successMessage: 'System logs cleared',
     invalidate: [['system-logs'], queryKeys.systemLogStats],
   });
+}// ----- Referrals -----------------------------------------------------------
+
+export function useAdminReferrals(params) {
+  return useQuery({
+    queryKey: ['admin-referrals', params],
+    queryFn: () => requestList({ method: 'GET', url: '/referrals/admin/list', params }),
+    placeholderData: (previous) => previous,
+  });
 }
 
+export function useAdminReferralStats() {
+  return useQuery({
+    queryKey: ['admin-referral-stats'],
+    queryFn: () => request({ method: 'GET', url: '/referrals/admin/stats' }),
+  });
+}
 
+// ----- In-App Broadcast Notifications --------------------------------------
+
+export function useInAppNotifications(params) {
+  return useQuery({
+    queryKey: queryKeys.inAppNotifications(params),
+    queryFn: () => request({ method: 'GET', url: '/notifications/admin/list', params }),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useBroadcastNotification() {
+  return useApiMutation({
+    mutationFn: (payload) => request({ method: 'POST', url: '/notifications/broadcast', data: payload }),
+    successMessage: 'Notification broadcasted in real-time to users!',
+    invalidate: [['in-app-notifications']],
+  });
+}
+
+export function useDeleteInAppNotification() {
+  return useApiMutation({
+    mutationFn: (id) => request({ method: 'DELETE', url: `/notifications/admin/${id}` }),
+    successMessage: 'Notification deleted',
+    invalidate: [['in-app-notifications']],
+  });
+}

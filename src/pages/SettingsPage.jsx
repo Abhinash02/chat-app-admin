@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Coins, Gamepad2, MessageSquare, MapPin, Radio, Save, ShieldAlert, Smartphone, Wallet } from 'lucide-react';
+import { Coins, Gamepad2, Gift, MessageSquare, MapPin, Radio, Save, ShieldAlert, Smartphone, Wallet } from 'lucide-react';
 
 import { Button } from '../components/ui/Button.jsx';
 import { Card, CardBody, CardHeader } from '../components/ui/Card.jsx';
@@ -593,6 +593,88 @@ export function SettingsPage() {
               </div>
             </div>
           )}
+        </SettingsSection>
+
+        {/* Refer & Earn */}
+        <SettingsSection
+          icon={Gift}
+          title="Refer &amp; Earn"
+          description="Coins credited to user A when they refer user B who successfully registers. Fully editable at runtime."
+          group="referral"
+          settings={settings}
+          transform={(draft) => ({
+            enabled: draft?.enabled ?? true,
+            boyToBoy: Number(draft?.boyToBoy ?? 10),
+            boyToGirl: Number(draft?.boyToGirl ?? 10),
+            girlToBoy: Number(draft?.girlToBoy ?? 10),
+            girlToGirl: Number(draft?.girlToGirl ?? 10),
+          })}
+        >
+          {({ draft, set }) => {
+            const isEnabled = draft?.enabled ?? true;
+            return (
+              <div className="space-y-5">
+                <Toggle
+                  checked={isEnabled}
+                  onChange={(value) => set('enabled', value)}
+                  label="Enable referral rewards"
+                  description="When off, no coins are awarded for any referral."
+                />
+
+                <p className="text-sm text-ink-500 font-medium">Coins awarded to referrer (A) per gender combination</p>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="👦 Boy refers 👦 Boy">
+                    <NumberInput
+                      value={draft?.boyToBoy ?? 10}
+                      min={0}
+                      max={10000}
+                      suffix="coins"
+                      disabled={!isEnabled}
+                      onChange={(event) => set('boyToBoy', event.target.value)}
+                    />
+                  </Field>
+
+                  <Field label="👦 Boy refers 👧 Girl">
+                    <NumberInput
+                      value={draft?.boyToGirl ?? 10}
+                      min={0}
+                      max={10000}
+                      suffix="coins"
+                      disabled={!isEnabled}
+                      onChange={(event) => set('boyToGirl', event.target.value)}
+                    />
+                  </Field>
+
+                  <Field label="👧 Girl refers 👦 Boy">
+                    <NumberInput
+                      value={draft?.girlToBoy ?? 10}
+                      min={0}
+                      max={10000}
+                      suffix="coins"
+                      disabled={!isEnabled}
+                      onChange={(event) => set('girlToBoy', event.target.value)}
+                    />
+                  </Field>
+
+                  <Field label="👧 Girl refers 👧 Girl">
+                    <NumberInput
+                      value={draft?.girlToGirl ?? 10}
+                      min={0}
+                      max={10000}
+                      suffix="coins"
+                      disabled={!isEnabled}
+                      onChange={(event) => set('girlToGirl', event.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                <p className="text-xs text-ink-400">
+                  Set any value to <strong>0</strong> to disable rewards for that gender combination without turning off the entire feature.
+                </p>
+              </div>
+            );
+          }}
         </SettingsSection>
       </div>
     </>
